@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal and Noise Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 2em; /* Slightly larger title */
+            text-align: center;
+        }
+        .input-container {
+            margin-bottom: 20px; /* Increase spacing between lines */
+            text-align: center;
+        }
+        .input-container label {
+            margin-right: 10px;
+        }
+        .input-container input {
+            width: 25%; /* Increased box sizes */
+            padding: 2px; /* Increased padding for better visibility */
+            box-sizing: border-box;
+        }
+
+        .input-container button {
+            padding: 10px 20px; /* Adjust padding to increase button size */
+            font-size: 1.2em; /* Increase font size */
+            border: none;
+            background-color: #007bff; /* Blue color for the button */
+            color: white; /* White text color */
+            cursor: pointer;
+            border-radius: 5px; /* Rounded corners */
+            transition: background-color 0.3s ease; /* Smooth hover effect */
+        }
+
+        .input-container button:hover {
+            background-color: #0056b3; /* Darker shade of blue on hover */
+        }
+
+        .chart-container {
+            display: flex;
+            justify-content: center; /* Center the charts */
+            gap: 30px; /* Increased space between the charts */
+            margin-top: 20px; /* Space above the charts */
+        }
+        .chart {
+            width: 36%; /* Shrink width by 20% from 45% */
+            max-width: 480px; /* Reduce the maximum width accordingly */
+            height: 320px; /* Shrink height by 20% from 400px */
+        }
+        .sn-container {
+            display: flex;
+            justify-content: center;
+            gap: 200px; /* Increased gap between S/N labels */
+            margin-top: 10px;
+        }
+        .sn-container p {
+            text-align: center;
+            font-size: 1.0em; /* Increase font size of S/N */
+            flex: 1;
+            white-space: nowrap; /* Ensure labels stay on the same line */
+            display: flex;
+            align-items: center;
+        }
+        .sn-label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .sn-value {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+        }
+        .scan-counter {
+            text-align: center;
+            font-size: 1.0em;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px; /* Increased gap between label and value */
+        }
+
+        .scan-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .scan-label {
+            margin-right: 5px; /* Adjust margin between label and value */
+        }
+
+        .scan-value {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+
+        .scan-value {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Signal Averaging</h1>
+    <div class="input-container">
+        <label for="signalMagnitude">Signal magnitude:</label>
+        <input type="number" id="signalMagnitude" min="0" step="0.1" value="0">
+    </div>
+    <div class="input-container">
+        <label for="repeatCount">Number of scans to average:</label>
+        <input type="number" id="repeatCount" min="1" value="1">
+    </div>
+    <div class="input-container">
+        <button id="runButton">Run simulation</button>
+    </div>
+    <div class="chart-container">
+        <canvas id="myChart" class="chart"></canvas>
+        <canvas id="averageChart" class="chart"></canvas>
+    </div>
+    <div class="sn-container">
+        <div>
+            <p class="sn-label">S/N (current scan):</p>
+            <div id="snTotal" class="sn-value">0</div>
+        </div>
+        <div>
+            <p class="sn-label">S/N (average of all scans):</p>
+            <div id="snAverage" class="sn-value">0</div>
+        </div>
+    </div>
+    <div class="scan-counter">
+        <div class="scan-info">
+            <p class="scan-label">Scan:</p>
+            <div id="scanCount" class="scan-value">0 of 0</div>
+        </div>
+    </div>
+
+    <script>
+        // Function to generate Gaussian white noise using the Box-Muller transform
+        function generateGaussianNoise(mean = 0, stdDev = 1) {
+            let u1 = Math.random();
+            let u2 = Math.random();
+            let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            return z0 * stdDev + mean;
+        }
+
+        // Function to create an array of 200 points of Gaussian white noise
+        function createNoiseArray() {
+            return Array.from({ length: 200 }, () => generateGaussianNoise(0, 1));
+        }
+
+        // Function to initialize the signal array with all zeros
+        function initializeSignalArray() {
+            return new Array(200).fill(0);
+        }
+
+        // Function to update the signal array based on the input value
+        function updateSignal(value, signal) {
+            signal[99] = value;
+        }
+
+        // Function to create the total array which is the sum of signal and noise
+        function createTotalArray(signal, noise) {
+            return signal.map((val, index) => val + noise[index]);
+        }
+
+        // Function to calculate the standard deviation excluding the 100th point
+        function calculateStandardDeviation(array) {
+            const values = array.filter((_, index) => index !== 99);
+            const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+            const variance = values.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / values.length;
+            return Math.sqrt(variance);
+        }
+
+        // Function to calculate and display S/N value
+        function updateSN(elementId, value, type) {
+            document.getElementById(elementId).textContent = value.toFixed(2);
+        }
+
+        // Function to update the graph
+        function updateGraph(chart, data) {
+            chart.data.datasets[0].data = data;
+            chart.update();
+        }
+
+        // Function to update the scan count
+        function updateScanCount(scanCount, totalScans) {
+            document.getElementById('scanCount').textContent = `${scanCount} of ${totalScans}`;
+        }
+
+        // Initial graph setup using Chart.js
+        const ctx1 = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 200 }, (_, i) => i + 1),
+                datasets: [{
+                    label: 'Total (Signal + Noise)',
+                    data: initializeSignalArray(),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    pointRadius: 0, // Remove points
+                    fill: false
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false // Remove legend
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false // Remove x-axis
+                    },
+                    y: {
+                        min: -4,
+                        max: 4,
+                        title: {
+                            display: true,
+                            text: 'Current scan',
+                            font: {
+                                size: 20 // Increase font size of the y-axis title
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const ctx2 = document.getElementById('averageChart').getContext('2d');
+        const averageChart = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 200 }, (_, i) => i + 1),
+                datasets: [{
+                    label: 'Average of Totals',
+                    data: initializeSignalArray(),
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    pointRadius: 0, // Remove points
+                    fill: false
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false // Remove legend
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false // Remove x-axis
+                    },
+                    y: {
+                        min: -4,
+                        max: 4,
+                        title: {
+                            display: true,
+                            text: 'Average of all scans',
+                            font: {
+                                size: 20 // Increase font size of the y-axis title
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Function to run the process a user-defined number of times with a delay
+        async function runProcess(repeatCount) {
+            let allTotals = []; // Clear previous totals
+            let average = new Array(200).fill(0); // Initialize average array
+            const signalMagnitude = Number(document.getElementById('signalMagnitude').value);
+            myChart.options.scales.y.max = 4 + signalMagnitude;
+            averageChart.options.scales.y.max = 4 + signalMagnitude;
+
+            for (let i = 0; i < repeatCount; i++) {
+                const noise = createNoiseArray();
+                const signal = initializeSignalArray();
+                updateSignal(signalMagnitude, signal);
+                const total = createTotalArray(signal, noise);
+                allTotals.push(total);
+                updateGraph(myChart, total); // Update myChart with current total array
+
+                // Update the average array
+                total.forEach((value, index) => {
+                    average[index] = (average[index] * i + value) / (i + 1);
+                });
+
+                updateGraph(averageChart, average); // Update averageChart with accumulated average array
+
+                // Calculate S/N for total array
+                const stdTotal = calculateStandardDeviation(total);
+                const snTotal = total[99] / stdTotal;
+                updateSN('snTotal', snTotal, 'current scan');
+
+                // Calculate S/N for average array
+                const stdAverage = calculateStandardDeviation(average);
+                const snAverage = average[99] / stdAverage;
+                updateSN('snAverage', snAverage, 'average of all scans');
+
+                // Update scan count
+                updateScanCount(i + 1, repeatCount);
+
+                await sleep(100); // Delay for 100ms
+            }
+        }
+
+        // Utility function to create a delay
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Set up the Run button
+        document.getElementById('runButton').addEventListener('click', () => {
+            const repeatCount = Number(document.getElementById('repeatCount').value);
+            runProcess(repeatCount);
+        });
+
+        // Initial display
+        updateSignal(0, initializeSignalArray());
+    </script>
+</body>
+</html>
