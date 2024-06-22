@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S/N Demo (dynamic)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom CSS for chart */
+        canvas {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        /* Optional CSS adjustments */
+        body {
+            margin: 0;
+            padding: 0;
+            font-size: 3vw;
+        }
+
+        .title-container {
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        h1 {
+            font-size: 1em;
+        }
+
+        .button-container {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        #startStopButton {
+            width: 10vw;
+            height: 5vh;
+            font-size: 2vw; /* Adjust font size to be larger but fit within the button */
+        }
+
+        .slider-container {
+            width: 90%;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .slider {
+            width: 45%; /* Adjust width relative to container size */
+        }
+
+        .delay-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .delay-container label {
+            margin-right: 10px;
+            font-size: 2vw; /* Decrease font size of the delay label */
+        }
+
+        .signal-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .signal-container label {
+            margin-right: 10px;
+            font-size: 2vw; /* Decrease font size of the signal label */
+        }
+        
+        .sn-container {
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<h1 style="text-align: left;">S/N Demo (dynamic)</h1>
+ <div class="button-container">
+        <button id="startStopButton">Start</button>
+    </div>
+    <div style="width: 70%; margin: 0 auto;">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <div class="sn-container">
+        <span>S/N: <span id="signalToNoise">0</span></span>
+    </div>
+
+    <div class="slider-container">
+        <div class="signal-container">
+            <label for="signalSlider">Signal: <span id="signalValue">0</span></label>
+            <input type="range" id="signalSlider" min="0" max="50" value="0" class="slider">
+        </div>
+
+        <div class="delay-container">
+            <label for="delaySlider">Delay time (ms): <span id="delayValue">100</span></label>
+            <input type="range" id="delaySlider" min="100" max="2000" step="100" value="100" class="slider">
+        </div>
+
+    </div>
+
+    <script>
+        // Function to generate an array of 200 Gaussian random numbers with mean 0 and standard deviation 1
+        function generateGaussianNoise(size = 200) {
+            let gaussianNoiseArray = [];
+            while (gaussianNoiseArray.length < size) {
+                let u1 = Math.random();
+                let u2 = Math.random();
+                let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+                if (!isNaN(z0)) {
+                    gaussianNoiseArray.push(z0);
+                }
+            }
+            return gaussianNoiseArray;
+        }
+
+        // Function to calculate standard deviation of an array
+        function calculateStandardDeviation(data) {
+            const mean = data.reduce((acc, val) => acc + val, 0) / data.length;
+            const variance = data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / data.length;
+            return Math.sqrt(variance);
+        }
+
+        // Initial setup
+        let intervalId;
+        let isRunning = false;
+        let signalValue = 0;
+        let delayValue = 100;
+
+        // Chart.js configuration
+        let ctx = document.getElementById('myChart').getContext('2d');
+        let myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({ length: 200 }, (_, i) => i + 1),
+                datasets: [{
+                    label: 'Gaussian White Noise',
+                    data: Array(200).fill(0),
+                    borderColor: 'rgba(0, 0, 0, 1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        display: false
+                    },
+                    y: {
+                        display: true,
+                        min: -3, // Lower limit of y-axis
+                        max: 3 + signalValue, // Initial upper limit of y-axis
+                        title: {
+                            display: true,
+                            text: 'Instrument output', // Y-axis label
+                            font: {
+                                size: 18 // Make the y-axis label larger
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    line: {
+                        tension: 0 // Disable smoothing of lines
+                    }
+                }
+            }
+        });
+
+        // Function to update the chart with new signal value
+        function updateChartWithSignal(signalValue) {
+            let noise = generateGaussianNoise();
+            noise[99] += signalValue;
+
+            myChart.data.datasets[0].data = noise;
+            myChart.options.scales.y.max = 3 + signalValue; // Set y-axis max to 3 + signal value
+            myChart.update();
+
+            // Update Signal-to-Noise Ratio (S/N) value display
+            const noiseStdDev = calculateStandardDeviation(noise.filter((_, i) => i !== 99));
+            const snRatio = noise[99] / noiseStdDev;
+            document.getElementById('signalToNoise').textContent = snRatio.toFixed(2);
+        }
+
+        // Function to start the loop
+        function startLoop() {
+            intervalId = setInterval(function() {
+                updateChartWithSignal(signalValue);
+            }, delayValue); // Update every delayValue milliseconds
+        }
+
+        // Function to stop the loop
+        function stopLoop() {
+            clearInterval(intervalId);
+        }
+
+        // Start/Stop button event listener
+        document.getElementById('startStopButton').addEventListener('click', function() {
+            if (isRunning) {
+                stopLoop();
+                this.textContent = 'Start';
+            } else {
+                startLoop();
+                this.textContent = 'Stop';
+            }
+            isRunning = !isRunning;
+        });
+
+        // Signal slider event listener
+        document.getElementById('signalSlider').addEventListener('input', function() {
+            signalValue = parseFloat(this.value);
+            document.getElementById('signalValue').textContent = signalValue;
+        });
+
+        // Delay slider event listener
+        document.getElementById('delaySlider').addEventListener('input', function() {
+            delayValue = parseInt(this.value);
+            document.getElementById('delayValue').textContent = delayValue;
+
+            // If running, restart the loop with new delay value
+            if (isRunning) {
+                stopLoop();
+                startLoop();
+            }
+        });
+
+        // Initial chart update
+        updateChartWithSignal(signalValue);
+    </script>
+</body>
+</html>
