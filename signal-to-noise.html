@@ -20,7 +20,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-size: 3vw;
+            font-size: 1.5vw; /* Reduced base font size */
         }
 
         .title-container {
@@ -29,18 +29,18 @@
         }
 
         h1 {
-            font-size: 1em;
+            font-size: 0.8em; /* Reduced font size */
         }
 
         .button-container {
-            margin-top: 15px;
+            margin-top: 10px;
             text-align: center;
         }
 
         #startStopButton {
-            width: 10vw;
-            height: 5vh;
-            font-size: 2vw; /* Adjust font size to be larger but fit within the button */
+            width: 8vw; /* Reduced width */
+            height: 3vh; /* Reduced height */
+            font-size: 1.2vw; /* Reduced font size */
         }
 
         .slider-container {
@@ -50,42 +50,30 @@
         }
 
         .slider {
-            width: 45%; /* Adjust width relative to container size */
+            width: 40%; /* Adjust width relative to container size */
         }
 
-        .delay-container {
+        .delay-container, .signal-container {
             display: flex;
             justify-content: center;
             align-items: center;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
-        .delay-container label {
-            margin-right: 10px;
-            font-size: 2vw; /* Decrease font size of the delay label */
-        }
-
-        .signal-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 10px;
-        }
-
-        .signal-container label {
-            margin-right: 10px;
-            font-size: 2vw; /* Decrease font size of the signal label */
+        .delay-container label, .signal-container label {
+            margin-right: 5px;
+            font-size: 1.2vw; /* Decreased font size */
         }
         
         .sn-container {
             text-align: center;
-            margin-top: 10px;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
-<h1 style="text-align: left;">S/N Demo (dynamic)</h1>
- <div class="button-container">
+    <h1 style="text-align: left;">S/N Demo (dynamic)</h1>
+    <div class="button-container">
         <button id="startStopButton">Start</button>
     </div>
     <div style="width: 70%; margin: 0 auto;">
@@ -106,7 +94,6 @@
             <label for="delaySlider">Delay time (ms): <span id="delayValue">100</span></label>
             <input type="range" id="delaySlider" min="100" max="2000" step="100" value="100" class="slider">
         </div>
-
     </div>
 
     <script>
@@ -171,7 +158,7 @@
                             display: true,
                             text: 'Instrument output', // Y-axis label
                             font: {
-                                size: 18 // Make the y-axis label larger
+                                size: 14 // Reduced font size of the y-axis label
                             }
                         }
                     }
