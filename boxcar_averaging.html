@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boxcar Averaging</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        #title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        #plot-original, #plot-smoothed {
+            width: 60vw;
+            height: 20vw;
+            margin-bottom: 2px; /* Adjusted spacing between plots */
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .slider.round {
+            border-radius: 34px;
+        }
+        .slider.round:before {
+            border-radius: 50%;
+        }
+        #startStopButton {
+            font-size: 16px;
+            padding: 12px 24px; /* Larger padding */
+            background-color: #2196F3; /* Blue background */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #startStopButton:hover {
+            background-color: #0d8de0; /* Darker blue on hover */
+        }
+    </style>
+</head>
+<body>
+    <div id="title">Boxcar Averaging</div>
+    <div class="controls">
+        <label for="windowSize">Window Size:</label>
+        <input type="range" id="windowSize" name="windowSize" min="1" max="100" value="1">
+        <span id="windowSizeValue">1</span>
+        <div style="flex-grow: 1;"></div>
+        <label for="toggleSwitch">Averaging Method (Boxcar/Moving Average):</label>
+        <label class="switch">
+            <input type="checkbox" id="toggleSwitch">
+            <span class="slider round"></span>
+        </label>
+        <span id="toggleSwitchLabel">Boxcar Average</span>
+    </div>
+    <button id="startStopButton">Start Simulation</button>
+    <div id="plot-original"></div>
+    <div id="plot-smoothed"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Custom function to generate Gaussian white noise
+            function randomNormal(mean = 0, stddev = 1) {
+                let u = 0, v = 0;
+                while(u === 0) u = Math.random(); // Convert [0,1) to (0,1)
+                while(v === 0) v = Math.random();
+                return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) * stddev + mean;
+            }
+
+            // Function to perform boxcar averaging
+            function boxcarAveraging(signal, windowSize) {
+                const smoothed = [];
+                const smoothedX = [];
+                for (let i = 0; i < signal.length; i += windowSize) {
+                    let sum = 0;
+                    let xSum = 0;
+                    let count = 0;
+                    for (let j = 0; j < windowSize; j++) {
+                        if (i + j < signal.length) {
+                            sum += signal[i + j];
+                            xSum += (i + j);
+                            count++;
+                        }
+                    }
+                    const avg = sum / count;
+                    const avgX = xSum / count;
+                    smoothed.push(avg);
+                    smoothedX.push(avgX);
+                }
+                return { smoothedX, smoothed };
+            }
+
+            // Function to perform moving average
+            function movingAverage(signal, windowSize) {
+                const smoothed = [];
+                const halfWindow = Math.floor(windowSize / 2);
+                for (let i = 0; i < signal.length; i++) {
+                    let sum = 0;
+                    let count = 0;
+                    for (let j = -halfWindow; j <= halfWindow; j++) {
+                        if (i + j >= 0 && i + j < signal.length) {
+                            sum += signal[i + j];
+                            count++;
+                        }
+                    }
+                    smoothed.push(sum / count);
+                }
+                return smoothed;
+            }
+
+            // Generate 2000-point array of Gaussian white noise and sine wave signal
+            function generateSignal() {
+                const noise = Array.from({ length: 2000 }, () => randomNormal(0, 1));
+                const sineWave = [];
+                const points = 2000;
+                const amplitude = 2;
+                const cycles = 4;
+                for (let i = 0; i < points; i++) {
+                    const t = i / points * cycles * 2 * Math.PI;
+                    sineWave.push(amplitude * Math.sin(t));
+                }
+                const signal = noise.map((value, index) => value + sineWave[index]);
+                return signal;
+            }
+
+            // Initial generation of the signal
+            let signal = generateSignal();
+            let windowSize = 1;
+
+            // Plot the original signal array
+            function plotOriginal(signal) {
+                const traceOriginal = {
+                    x: Array.from({ length: signal.length }, (_, i) => i),
+                    y: signal,
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: 'Raw Signal'
+                };
+
+                const layoutOriginal = {
+                    xaxis: { showticklabels: false },
+                    yaxis: { title: 'Raw Signal', showticklabels: false, showgrid: false, range: [-5, 5] },
+                    margin: { t: 30 }
+                };
+
+                Plotly.newPlot('plot-original', [traceOriginal], layoutOriginal, {displayModeBar: false});
+            }
+
+            plotOriginal(signal);
+
+            // Function to update the smoothed plot
+            function updateSmoothedPlot() {
+                const useBoxcar = document.getElementById('toggleSwitch').checked;
+                const method = useBoxcar ? 'Boxcar Average' : 'Moving Average';
+                const smoothedData = useBoxcar ? boxcarAveraging(signal, windowSize) : movingAverage(signal, windowSize);
+
+                const traceSmoothed = {
+                    x: useBoxcar ? smoothedData.smoothedX : Array.from({ length: signal.length }, (_, i) => i),
+                    y: useBoxcar ? smoothedData.smoothed : smoothedData,
+                    mode: 'lines',
+                    type: 'scatter',
+                    name: 'Averaged Signal'
+                };
+
+                const layoutSmoothed = {
+                    xaxis: { showticklabels: false },
+                    yaxis: { title: 'Averaged Signal', showticklabels: false, showgrid: false, range: [-5, 5] },
+                    margin: { t: 30 }
+                };
+
+                Plotly.newPlot('plot-smoothed', [traceSmoothed], layoutSmoothed, {displayModeBar: false});
+                document.getElementById('toggleSwitchLabel').textContent = method; // Update toggle label
+            }
+
+            // Initial plot of the smoothed signal
+            updateSmoothedPlot();
+
+            // Update window size display and plot when slider value changes
+            const windowSizeSlider = document.getElementById('windowSize');
+            const windowSizeValueDisplay = document.getElementById('windowSizeValue');
+            windowSizeSlider.addEventListener('input', function() {
+                windowSize = parseInt(this.value, 10);
+                windowSizeValueDisplay.textContent = windowSize;
+                updateSmoothedPlot();
+            });
+
+            // Update plot method when toggle switch changes
+            const toggleSwitch = document.getElementById('toggleSwitch');
+            toggleSwitch.addEventListener('change', function() {
+                updateSmoothedPlot();
+            });
+
+            // Start/Stop button control for animation
+            let animationInterval;
+            const startStopButton = document.getElementById('startStopButton');
+            let running = false;
+            startStopButton.addEventListener('click', function() {
+                if (running) {
+                    clearInterval(animationInterval);
+                    startStopButton.textContent = 'Start Simulation';
+                } else {
+                    animationInterval = setInterval(() => {
+                        signal = generateSignal(); // Generate new signal arrays
+                        plotOriginal(signal); // Update the original plot
+                        updateSmoothedPlot(); // Update the smoothed plot
+                    }, 50); // Iterate every 50 milliseconds
+                    startStopButton.textContent = 'Stop Simulation';
+                }
+                running = !running;
+            });
+        });
+    </script>
+</body>
+</html>
