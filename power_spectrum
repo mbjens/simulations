@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signal Simulation</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="signalPlot" style="width: 100%; height: 400px;"></div>
+    <div id="noisePowerSpectrumPlot" style="width: 100%; height: 400px;"></div>
+    <script>
+        // Simple FFT implementation
+        function fft(x) {
+            const N = x.length;
+            if (N <= 1) return x;
+            const even = fft(x.filter((_, i) => i % 2 === 0));
+            const odd = fft(x.filter((_, i) => i % 2 === 1));
+            const t = Array(N).fill().map((_, k) => {
+                const angle = -2 * Math.PI * k / N;
+                return [Math.cos(angle), Math.sin(angle)];
+            });
+            return Array(N).fill().map((_, k) => {
+                const [re, im] = even[k % (N/2)];
+                const [tr, ti] = t[k];
+                const [or, oi] = odd[k % (N/2)];
+                return [
+                    re + tr * or - ti * oi,
+                    im + tr * oi + ti * or
+                ];
+            });
+        }
+
+        // Generate Gaussian white noise using the Box-Muller transform
+        function gaussianRandom(mean = 0, stdDev = 1) {
+            let u1 = Math.random();
+            let u2 = Math.random();
+            let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            return z0 * stdDev + mean;
+        }
+
+        // Generate the signal
+        function generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev) {
+            const sampleRate = 2048; // Use power of 2 for FFT
+            const duration = 1; // 1 second
+            const dt = duration / sampleRate;
+            const signal = [];
+            const time = [];
+            for (let i = 0; i < sampleRate; i++) {
+                const t = i * dt;
+                const noise = gaussianRandom(0, noiseStdDev);
+                const signalValue = amplitude1 * Math.sin(2 * Math.PI * frequency1 * t + phase1) + 
+                                    amplitude2 * Math.sin(2 * Math.PI * frequency2 * t + phase2) + 
+                                    noise;
+                signal.push(signalValue);
+                time.push(t);
+            }
+            return { signal, time };
+        }
+
+        // Perform FFT and compute the power spectrum
+        function computePowerSpectrum(signal) {
+            const complexSignal = signal.map(x => [x, 0]);
+            const fftResult = fft(complexSignal);
+
+            const powerSpectrum = [];
+            const freq = [];
+            for (let i = 0; i < signal.length / 2; i++) {
+                const [re, im] = fftResult[i];
+                powerSpectrum.push(Math.sqrt(re * re + im * im));
+                freq.push(i * (2048 / signal.length)); // Frequency axis
+            }
+            return { powerSpectrum, freq };
+        }
+
+        // User-defined parameters
+        const amplitude1 = 1;
+        const frequency1 = 50; // 50 Hz
+        const phase1 = 0;
+        const amplitude2 = 0.5;
+        const frequency2 = 120; // 120 Hz
+        const phase2 = Math.PI / 4;
+        const noiseStdDev = 0.2;
+
+        // Generate the signal
+        const { signal, time } = generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev);
+
+        console.log('Signal:', signal);
+
+        // Compute the power spectrum
+        const { powerSpectrum, freq } = computePowerSpectrum(signal);
+
+        console.log('Power Spectrum:', powerSpectrum);
+
+        // Plot the signal
+        const signalTrace = {
+            x: time,
+            y: signal,
+            mode: 'lines',
+            name: 'Signal'
+        };
+
+        const signalLayout = {
+            title: 'Signal',
+            xaxis: { title: 'Time (s)' },
+            yaxis: { title: 'Amplitude' }
+        };
+
+        Plotly.newPlot('signalPlot', [signalTrace], signalLayout);
+
+        // Plot the power spectrum
+        const powerSpectrumTrace = {
+            x: freq,
+            y: powerSpectrum,
+            mode: 'lines',
+            name: 'Power Spectrum'
+        };
+
+        const powerSpectrumLayout = {
+            title: 'Noise Power Spectrum',
+            xaxis: { title: 'Frequency (Hz)' },
+            yaxis: { title: 'Power' }
+        };
+
+        Plotly.newPlot('noisePowerSpectrumPlot', [powerSpectrumTrace], powerSpectrumLayout);
+    </script>
+</body>
+</html>
