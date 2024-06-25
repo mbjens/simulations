@@ -3,12 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signal Simulation</title>
+    <title>Noise Power Spectrum</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+button#toggleSimulation {
+    font-size: 20px; /* Adjust the font size as needed */
+}
+
+
+      .content {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 80%;
+}
+
+.controls {
+    width: 300px;
+    background-color: #d3d3d3;
+    padding: 20px;
+    border-radius: 10px;
+    margin-right: 20px; /* Add space between controls and plots */
+    display: flex;
+    flex-direction: column;
+}
+
+.control-group {
+    margin-bottom: 15px; /* Restore vertical spacing between control groups */
+}
+
+.plots {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 50%; /* Adjust width of plot container */
+}
+
+.plot {
+    background-color: #e6ffe6;
+    border: 1px solid #999;
+    width: 100%; /* Occupy full width of the plot container */
+    height: 300px;
+    margin-bottom: 20px;
+}
+
+/* Hide the Plotly mode bar */
+.modebar {
+    display: none !important;
+}
+
+
+
+button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
-    <div id="signalPlot" style="width: 100%; height: 400px;"></div>
-    <div id="noisePowerSpectrumPlot" style="width: 100%; height: 400px;"></div>
+    <h1>Noise Power Spectrum</h1>
+    <div class="content">
+        <div class="controls">
+            <h2>SINE WAVE #1</h2>
+            <div class="control-group">
+                <label for="frequency1">frequency 1</label>
+                <input type="number" id="frequency1" value="200" step="1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="amplitude1">amplitude 1</label>
+                <input type="number" id="amplitude1" value="3" step="1" min="0">
+            </div>
+            
+            <h2>SINE WAVE #2</h2>
+            <div class="control-group">
+                <label for="frequency2">frequency 2</label>
+                <input type="number" id="frequency2" value="50" step="1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="amplitude2">amplitude 2</label>
+                <input type="number" id="amplitude2" value="2" step="1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="phaseSeparation">phase (deg)</label>
+                <input type="number" id="phaseSeparation" value="15" step="1">
+            </div>
+            
+            <h2>NOISE LEVEL</h2>
+            <div class="control-group">
+                <label for="noiseStdDev">Std deviation</label>
+                <input type="number" id="noiseStdDev" value="3" step="1" min="0">
+            </div>
+            
+            <button id="toggleSimulation">Start</button>
+        </div>
+        <div class="plots">
+            <div id="signalPlot" class="plot plot-right"></div>
+            <div id="powerSpectrumPlot" class="plot plot-right"></div>
+        </div>
+    </div>
     <script>
         // Simple FFT implementation
         function fft(x) {
@@ -73,56 +189,71 @@
             return { powerSpectrum, freq };
         }
 
-        // User-defined parameters
-        const amplitude1 = 1;
-        const frequency1 = 50; // 50 Hz
-        const phase1 = 0;
-        const amplitude2 = 0.5;
-        const frequency2 = 120; // 120 Hz
-        const phase2 = Math.PI / 4;
-        const noiseStdDev = 0.2;
+        let simulationInterval;
+        let isRunning = false;
 
-        // Generate the signal
-        const { signal, time } = generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev);
+        function toggleSimulation() {
+            if (isRunning) {
+                clearInterval(simulationInterval);
+                document.getElementById('toggleSimulation').textContent = 'Start';
+            } else {
+                simulationInterval = setInterval(updatePlot, 100);  // Update every 100ms
+                document.getElementById('toggleSimulation').textContent = 'Stop';
+            }
+            isRunning = !isRunning;
+        }
 
-        console.log('Signal:', signal);
+        function updatePlot() {
+            const amplitude1 = parseFloat(document.getElementById('amplitude1').value);
+            const frequency1 = parseFloat(document.getElementById('frequency1').value);
+            const amplitude2 = parseFloat(document.getElementById('amplitude2').value);
+            const frequency2 = parseFloat(document.getElementById('frequency2').value);
+            const phaseSeparation = parseFloat(document.getElementById('phaseSeparation').value);
+            const noiseStdDev = parseFloat(document.getElementById('noiseStdDev').value);
 
-        // Compute the power spectrum
-        const { powerSpectrum, freq } = computePowerSpectrum(signal);
+            const phase1 = 0;
+            const phase2 = phaseSeparation * Math.PI / 180;
 
-        console.log('Power Spectrum:', powerSpectrum);
+            const { signal, time } = generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev);
+            const { powerSpectrum, freq } = computePowerSpectrum(signal);
 
-        // Plot the signal
-        const signalTrace = {
-            x: time,
-            y: signal,
-            mode: 'lines',
-            name: 'Signal'
-        };
+            Plotly.react('signalPlot', [{
+                x: time,
+                y: signal,
+                mode: 'lines',
+                line: { color: 'black' }
+            }], {
+                title: 'Time Signal',
+                xaxis: { title: 'Time (s)', range: [0, 1] },
+                yaxis: { title: 'Amplitude', autorange: true },
+                plot_bgcolor: '#e6ffe6',
+                paper_bgcolor: '#e6ffe6',
+                font: { family: 'Arial', color: 'black' },
+                showlegend: false,
+                displayModeBar: false
+            });
 
-        const signalLayout = {
-            title: 'Signal',
-            xaxis: { title: 'Time (s)' },
-            yaxis: { title: 'Amplitude' }
-        };
+            Plotly.react('powerSpectrumPlot', [{
+                x: freq,
+                y: powerSpectrum,
+                mode: 'lines',
+                line: { color: 'black' }
+            }], {
+                title: 'Power Spectrum',
+                xaxis: { title: 'Frequency (Hz)', autorange: true },
+                yaxis: { title: 'Power', autorange: true },
+                plot_bgcolor: '#e6ffe6',
+                paper_bgcolor: '#e6ffe6',
+                font: { color: 'black' },
+                showlegend: false,
+                displayModeBar: false
+            });
+        }
 
-        Plotly.newPlot('signalPlot', [signalTrace], signalLayout);
+        document.getElementById('toggleSimulation').addEventListener('click', toggleSimulation);
 
-        // Plot the power spectrum
-        const powerSpectrumTrace = {
-            x: freq,
-            y: powerSpectrum,
-            mode: 'lines',
-            name: 'Power Spectrum'
-        };
-
-        const powerSpectrumLayout = {
-            title: 'Noise Power Spectrum',
-            xaxis: { title: 'Frequency (Hz)' },
-            yaxis: { title: 'Power' }
-        };
-
-        Plotly.newPlot('noisePowerSpectrumPlot', [powerSpectrumTrace], powerSpectrumLayout);
+        // Initial plot
+        updatePlot();
     </script>
 </body>
 </html>
