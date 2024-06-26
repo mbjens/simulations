@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyquist Frequency Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #00BFFF;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 75%;
+            max-width: 800px;
+        }
+        .signal-box {
+            background-color: #4169E1;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+        }
+        h2 {
+            color: white;
+            margin-top: 0;
+            text-align: center;
+        }
+        canvas {
+            background-color: #000;
+            display: block;
+            margin-top: 10px;
+            width: 100%;
+            height: 270px;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            margin-bottom: 10px;
+            widthL 100%;
+        }
+        .control {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    label {
+        width: 150px;
+        text-align: right;
+        margin-right: 10px;
+        white-space: nowrap;
+    }
+    input[type="range"] {
+        width: 300px; /* Increased from 200px to 300px (50% longer) */
+        margin: 0 10px;
+    }
+    input[type="number"] {
+        width: 50px;
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Nyquist Frequency Demo</h2>
+        <div class="signal-box">
+            <div class="controls">
+                <div class="control">
+                    <label for="signalFrequency">Signal Frequency:</label>
+                    <input type="range" id="signalFrequency" min="1" max="100" value="5" oninput="updateValue(this)">
+                    <input type="number" id="signalFrequencyValue" value="5" min="1" max="100" onchange="updateSlider(this)">
+                </div>
+                <div class="control">
+                    <label for="signalAmplitude">Signal Amplitude:</label>
+                    <input type="range" id="signalAmplitude" min="0.1" max="10" step="0.1" value="4.4" oninput="updateValue(this)">
+                    <input type="number" id="signalAmplitudeValue" value="4.4" min="0.1" max="10" step="0.1" onchange="updateSlider(this)">
+                </div>
+                <div class="control">
+                    <label for="noiseStdDev">Noise Std Dev:</label>
+                    <input type="range" id="noiseStdDev" min="0" max="10" step="1" value="1" oninput="updateValue(this)">
+                    <input type="number" id="noiseStdDevValue" value="1" min="0" max="10" step="1" onchange="updateSlider(this)">
+                </div>
+            </div>
+            <canvas id="analogSignal" width="800" height="270"></canvas>
+        </div>
+        <div class="signal-box">
+            <div class="controls">
+                <div class="control">
+                    <label for="samplingFrequency">Sampling Frequency:</label>
+                    <input type="range" id="samplingFrequency" min="1" max="300" value="206" oninput="updateValue(this)">
+                    <input type="number" id="samplingFrequencyValue" value="206" min="1" max="300" onchange="updateSlider(this)">
+                </div>
+            </div>
+            <canvas id="digitalSignal" width="800" height="270"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const analogCanvas = document.getElementById('analogSignal');
+        const digitalCanvas = document.getElementById('digitalSignal');
+        const analogCtx = analogCanvas.getContext('2d');
+        const digitalCtx = digitalCanvas.getContext('2d');
+
+        let analogSignalArray = [];
+
+        function updateValue(slider) {
+            document.getElementById(slider.id + 'Value').value = slider.value;
+            updateGraphs();
+        }
+
+        function updateSlider(input) {
+            document.getElementById(input.id.replace('Value', '')).value = input.value;
+            updateGraphs();
+        }
+
+        function generateAnalogSignal() {
+            const signalFreq = parseFloat(document.getElementById('signalFrequency').value);
+            const signalAmp = parseFloat(document.getElementById('signalAmplitude').value);
+            const noiseStdDev = parseFloat(document.getElementById('noiseStdDev').value);
+
+            analogSignalArray = new Array(1000);
+            for (let i = 0; i < 1000; i++) {
+                const t = i / 1000;  // Time from 0 to 1 second
+                let y = signalAmp * Math.sin(2 * Math.PI * signalFreq * t);
+                
+                // Add Gaussian noise
+                let u1 = Math.random();
+                let u2 = Math.random();
+                let noise = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * noiseStdDev;
+                
+                analogSignalArray[i] = y + noise;
+            }
+        }
+
+        function drawSignal(ctx, isAnalog) {
+            const width = ctx.canvas.width;
+            const height = ctx.canvas.height;
+            const signalAmp = parseFloat(document.getElementById('signalAmplitude').value);
+            const noiseStdDev = parseFloat(document.getElementById('noiseStdDev').value);
+
+            ctx.clearRect(0, 0, width, height);
+            
+            const plotMargin = { top: 10, right: 30, bottom: 30, left: 40 };
+            const plotWidth = width - plotMargin.left - plotMargin.right;
+            const plotHeight = height - plotMargin.top - plotMargin.bottom;
+
+            // Calculate y-range
+            const yRange = Math.max(2 * (signalAmp + 3 * noiseStdDev), 0.1);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            for (let i = 0; i <= 10; i++) {
+                const y = plotMargin.top + i * plotHeight / 10;
+                ctx.moveTo(plotMargin.left, y);
+                ctx.lineTo(width - plotMargin.right, y);
+            }
+            for (let i = 0; i <= 10; i++) {
+                const x = plotMargin.left + i * plotWidth / 10;
+                ctx.moveTo(x, plotMargin.top);
+                ctx.lineTo(x, height - plotMargin.bottom);
+            }
+            ctx.stroke();
+
+            // Draw x-axis
+            ctx.beginPath();
+            ctx.moveTo(plotMargin.left, height - plotMargin.bottom);
+            ctx.lineTo(width - plotMargin.right, height - plotMargin.bottom);
+            ctx.strokeStyle = 'white';
+            ctx.stroke();
+
+            // Draw x-axis labels
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 10; i++) {
+                const x = plotMargin.left + i * plotWidth / 10;
+                const label = `${i * 100} ms`;
+                ctx.fillText(label, x, height - plotMargin.bottom + 5);
+            }
+
+            // Draw signal label
+            ctx.save();
+            ctx.translate(20, height / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText(isAnalog ? 'Analog Signal' : 'Digitally Sampled Signal', 0, 0);
+            ctx.restore();
+
+            // Draw signal
+            ctx.beginPath();
+            const drawPoint = (i) => {
+                const x = plotMargin.left + i * plotWidth / analogSignalArray.length;
+                const y = plotMargin.top + plotHeight / 2 - analogSignalArray[i] * (plotHeight / yRange);
+                return { x, y };
+            };
+
+            if (isAnalog) {
+                for (let i = 0; i < analogSignalArray.length; i++) {
+                    const { x, y } = drawPoint(i);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = 'lime';
+                ctx.stroke();
+            } else {
+                const samplingFreq = parseFloat(document.getElementById('samplingFrequency').value);
+                const samplingInterval = Math.floor(1000 / samplingFreq);
+                
+                ctx.beginPath();
+                for (let i = 0; i < analogSignalArray.length; i += samplingInterval) {
+                    const { x, y } = drawPoint(i);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = 'lime';
+                ctx.stroke();
+
+                // Draw sample points
+                for (let i = 0; i < analogSignalArray.length; i += samplingInterval) {
+                    const { x, y } = drawPoint(i);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'white';
+                    ctx.fill();
+                }
+            }
+        }
+
+        function updateGraphs() {
+            generateAnalogSignal();
+            drawSignal(analogCtx, true);
+            drawSignal(digitalCtx, false);
+        }
+
+        updateGraphs();
+    </script>
+</body>
+</html>
