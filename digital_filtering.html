@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Filtering Demo</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        button#toggleSimulation {
+            font-size: 20px;
+        }
+        .content {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            width: 80%;
+        }
+        .controls {
+            width: 300px;
+            background-color: #d3d3d3;
+            padding: 20px;
+            border-radius: 10px;
+            margin-right: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .plots {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 50%;
+        }
+        .plot {
+            background-color: #e6ffe6;
+            border: 1px solid #999;
+            width: 100%;
+            height: 250px;
+            margin-bottom: 10px;
+        }
+        .modebar {
+            display: none !important;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        /* New styles for the toggle switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-right: 10px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <h1>Digital Filtering Demo</h1>
+    <div class="content">
+        <div class="controls">
+            <h2>SINE WAVE #1</h2>
+            <div class="control-group">
+                <label for="frequency1">frequency 1</label>
+                <input type="number" id="frequency1" value="50" step="1" min="0" max="100">
+            </div>
+            <div class="control-group">
+                <label for="amplitude1">amplitude 1</label>
+                <input type="number" id="amplitude1" value="3" step="1" min="0">
+            </div>
+            
+            <h2>SINE WAVE #2</h2>
+            <div class="control-group">
+                <label for="frequency2">frequency 2</label>
+                <input type="number" id="frequency2" value="25" step="1" min="0" max="100">
+            </div>
+            <div class="control-group">
+                <label for="amplitude2">amplitude 2</label>
+                <input type="number" id="amplitude2" value="2" step="1" min="0">
+            </div>
+            <div class="control-group">
+                <label for="phaseSeparation">phase (deg)</label>
+                <input type="number" id="phaseSeparation" value="0" step="1">
+            </div>
+            
+            <h2>NOISE LEVEL</h2>
+            <div class="control-group">
+                <label for="noiseStdDev">Std deviation</label>
+                <input type="number" id="noiseStdDev" value="1" step="1" min="0">
+            </div>
+            
+            <h2>FILTER</h2>
+            <div class="control-group">
+                <label for="filterMode">Filter Mode:</label>
+                <label class="switch">
+                    <input type="checkbox" id="filterMode">
+                    <span class="slider"></span>
+                </label>
+                <span id="filterModeLabel">Notch</span>
+            </div>
+            <div class="control-group">
+                <label for="loFreqCutoff">Lo freq cutoff</label>
+                <input type="range" id="loFreqCutoff" min="0" max="100" value="0">
+                <span id="loFreqCutoffValue">0</span>
+            </div>
+            <div class="control-group">
+                <label for="hiFreqCutoff">Hi freq cutoff</label>
+                <input type="range" id="hiFreqCutoff" min="0" max="100" value="0">
+                <span id="hiFreqCutoffValue">0</span>
+            </div>
+            
+            <button id="toggleSimulation">Start</button>
+        </div>
+        <div class="plots">
+            <div id="signalPlot" class="plot plot-right"></div>
+            <div id="powerSpectrumPlot" class="plot plot-right"></div>
+            <div id="filteredSignalPlot" class="plot plot-right"></div>
+        </div>
+    </div>
+    <script>
+        // Simple FFT implementation
+        function fft(x) {
+            const N = x.length;
+            if (N <= 1) return x;
+            const even = fft(x.filter((_, i) => i % 2 === 0));
+            const odd = fft(x.filter((_, i) => i % 2 === 1));
+            const t = Array(N).fill().map((_, k) => {
+                const angle = -2 * Math.PI * k / N;
+                return [Math.cos(angle), Math.sin(angle)];
+            });
+            return Array(N).fill().map((_, k) => {
+                const [re, im] = even[k % (N/2)];
+                const [tr, ti] = t[k];
+                const [or, oi] = odd[k % (N/2)];
+                return [
+                    re + tr * or - ti * oi,
+                    im + tr * oi + ti * or
+                ];
+            });
+        }
+
+        // Inverse FFT implementation
+        function ifft(X) {
+            const N = X.length;
+            const x = fft(X.map(([re, im]) => [re, -im]));
+            return x.map(([re, im]) => [re / N, im / N]);
+        }
+
+        // Generate Gaussian white noise using the Box-Muller transform
+        function gaussianRandom(mean = 0, stdDev = 1) {
+            let u1 = Math.random();
+            let u2 = Math.random();
+            let z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            return z0 * stdDev + mean;
+        }
+
+        // Generate the signal
+        function generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev) {
+            const sampleRate = 2048; // Use power of 2 for FFT
+            const duration = 1; // 1 second
+            const dt = duration / sampleRate;
+            const signal = [];
+            const time = [];
+            for (let i = 0; i < sampleRate; i++) {
+                const t = i * dt;
+                const noise = gaussianRandom(0, noiseStdDev);
+                const signalValue = amplitude1 * Math.sin(2 * Math.PI * frequency1 * t + phase1) + 
+                                    amplitude2 * Math.sin(2 * Math.PI * frequency2 * t + phase2) + 
+                                    noise;
+                signal.push(signalValue);
+                time.push(t);
+            }
+            return { signal, time };
+        }
+
+        // Perform FFT and compute the power spectrum
+        function computePowerSpectrum(signal) {
+            const complexSignal = signal.map(x => [x, 0]);
+            const fftResult = fft(complexSignal);
+
+            const powerSpectrum = [];
+            const freq = [];
+            for (let i = 0; i < signal.length / 2; i++) {
+                const [re, im] = fftResult[i];
+                powerSpectrum.push(Math.sqrt(re * re + im * im));
+                freq.push(i * (2048 / signal.length)); // Frequency axis
+            }
+            return { powerSpectrum, freq, fftResult };
+        }
+
+        // Apply filter to the FFT result
+        function applyFilter(fftResult, loFreq, hiFreq, isBandpass) {
+            const filteredFFTResult = fftResult.map(([re, im], index) => {
+                const isInPassband = (index >= loFreq && index <= hiFreq) || 
+                                     ((fftResult.length - index) >= loFreq && (fftResult.length - index) <= hiFreq);
+                if ((isBandpass && !isInPassband) || (!isBandpass && isInPassband)) {
+                    return [0, 0];
+                } else {
+                    return [re, im];
+                }
+            });
+
+            const filteredPowerSpectrum = filteredFFTResult.slice(0, fftResult.length / 2).map(([re, im]) => Math.sqrt(re * re + im * im));
+
+            return { filteredPowerSpectrum, filteredFFTResult };
+        }
+
+        let simulationInterval;
+        let isRunning = false;
+
+        function toggleSimulation() {
+            if (isRunning) {
+                clearInterval(simulationInterval);
+                document.getElementById('toggleSimulation').textContent = 'Start';
+            } else {
+                simulationInterval = setInterval(updatePlot, 100);  // Update every 100ms
+                document.getElementById('toggleSimulation').textContent = 'Stop';
+            }
+            isRunning = !isRunning;
+        }
+
+        function updatePlot() {
+            const amplitude1 = parseFloat(document.getElementById('amplitude1').value);
+            const frequency1 = parseFloat(document.getElementById('frequency1').value);
+            const amplitude2 = parseFloat(document.getElementById('amplitude2').value);
+            const frequency2 = parseFloat(document.getElementById('frequency2').value);
+            const phaseSeparation = parseFloat(document.getElementById('phaseSeparation').value);
+            const noiseStdDev = parseFloat(document.getElementById('noiseStdDev').value);
+            const loFreqCutoff = parseInt(document.getElementById('loFreqCutoff').value);
+            const hiFreqCutoff = parseInt(document.getElementById('hiFreqCutoff').value);
+            const isBandpass = document.getElementById('filterMode').checked;
+
+            const phase1 = 0;
+            const phase2 = phaseSeparation * Math.PI / 180;
+
+            const { signal, time } = generateSignal(amplitude1, frequency1, phase1, amplitude2, frequency2, phase2, noiseStdDev);
+            const { powerSpectrum, freq, fftResult } = computePowerSpectrum(signal);
+            const { filteredPowerSpectrum, filteredFFTResult } = applyFilter(fftResult, loFreqCutoff, hiFreqCutoff, isBandpass);
+
+            // Perform inverse FFT on the filtered spectrum
+            const filteredSignal = ifft(filteredFFTResult).map(([re]) => re);
+
+            Plotly.react('signalPlot', [{
+                x: time,
+                y: signal,
+                mode: 'lines',
+                line: { color: 'black' }
+            }], {
+                title: 'Time Signal',
+                xaxis: { title: 'Time (s)', range: [0, 1] },
+                yaxis: { title: 'Amplitude', autorange: true },
+                plot_bgcolor: '#e6ffe6',
+                paper_bgcolor: '#e6ffe6',
+                font: { family: 'Arial', color: 'black' },
+                showlegend: false,
+                displayModeBar: false,
+                margin: { l: 50, r: 50, t: 50, b: 50 }
+            });
+
+            Plotly.react('powerSpectrumPlot', [{
+                x: freq,
+                y: powerSpectrum,
+                mode: 'lines',
+                line: { color: 'black' }
+            }, {
+                x: freq,
+                y: filteredPowerSpectrum,
+                mode: 'lines',
+                line: { color: 'red' }
+            }], {
+                title: 'Power Spectrum',
+                xaxis: { title: 'Frequency (Hz)', range: [0, 100] },
+                yaxis: { title: 'Power', autorange: true },
+                plot_bgcolor: '#e6ffe6',
+                paper_bgcolor: '#e6ffe6',
+                font: { color: 'black' },
+                showlegend: false,
+                displayModeBar: false,
+                margin: { l: 50, r: 50, t: 50, b: 50 }
+            });
+
+            Plotly.react('filteredSignalPlot', [{
+                x: time,
+                y: filteredSignal,
+                mode: 'lines',
+                line: { color: 'red' }
+            }], {
+                title: 'Filtered Time Signal',
+                xaxis: { title: 'Time (s)', range: [0, 1] },
+                yaxis: { title: 'Amplitude', autorange: true },
+                plot_bgcolor: '#e6ffe6',
+                paper_bgcolor: '#e6ffe6',
+                font: { family: 'Arial', color: 'black' },
+                showlegend: false,
+                displayModeBar: false,
+                margin: { l: 50, r: 50, t: 50, b: 50 }
+            });
+        }
+
+        document.getElementById('toggleSimulation').addEventListener('click', toggleSimulation);
+
+       // Update displayed values for frequency cutoffs
+        document.getElementById('loFreqCutoff').addEventListener('input', function() {
+            document.getElementById('loFreqCutoffValue').textContent = this.value;
+            const hiFreqCutoff = document.getElementById('hiFreqCutoff');
+            if (parseInt(this.value) > parseInt(hiFreqCutoff.value)) {
+                hiFreqCutoff.value = this.value;
+                document.getElementById('hiFreqCutoffValue').textContent = this.value;
+            }
+        });
+
+        document.getElementById('hiFreqCutoff').addEventListener('input', function() {
+            document.getElementById('hiFreqCutoffValue').textContent = this.value;
+            const loFreqCutoff = document.getElementById('loFreqCutoff');
+            if (parseInt(this.value) < parseInt(loFreqCutoff.value)) {
+                loFreqCutoff.value = this.value;
+                document.getElementById('loFreqCutoffValue').textContent = this.value;
+            }
+        });
+
+        // Toggle filter mode
+        document.getElementById('filterMode').addEventListener('change', function() {
+            document.getElementById('filterModeLabel').textContent = this.checked ? 'Bandpass' : 'Notch';
+            if (isRunning) {
+                updatePlot();
+            }
+        });
+
+        // Initial plot
+        updatePlot();
+    </script>
+</body>
+</html>
