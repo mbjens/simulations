@@ -246,14 +246,14 @@
             startStopButton.addEventListener('click', function() {
                 if (running) {
                     clearInterval(animationInterval);
-                    startStopButton.textContent = 'Start Simulation';
+                    startStopButton.textContent = 'Run Continuously';
                 } else {
                     animationInterval = setInterval(() => {
                         signal = generateSignal(); // Generate new signal arrays
                         plotOriginal(signal); // Update the original plot
                         updateSmoothedPlot(); // Update the smoothed plot
                     }, 50); // Iterate every 50 milliseconds
-                    startStopButton.textContent = 'Stop Simulation';
+                    startStopButton.textContent = 'Stop continuous run';
                 }
                 running = !running;
             });
