@@ -91,7 +91,7 @@ button {
             <h2>SINE WAVE #1</h2>
             <div class="control-group">
                 <label for="frequency1">frequency 1</label>
-                <input type="number" id="frequency1" value="200" step="1" min="0">
+                <input type="number" id="frequency1" value="10" step="1" min="0" max="100">
             </div>
             <div class="control-group">
                 <label for="amplitude1">amplitude 1</label>
@@ -101,7 +101,7 @@ button {
             <h2>SINE WAVE #2</h2>
             <div class="control-group">
                 <label for="frequency2">frequency 2</label>
-                <input type="number" id="frequency2" value="50" step="1" min="0">
+                <input type="number" id="frequency2" value="5" step="1" min="0" max="100">
             </div>
             <div class="control-group">
                 <label for="amplitude2">amplitude 2</label>
@@ -109,13 +109,13 @@ button {
             </div>
             <div class="control-group">
                 <label for="phaseSeparation">phase (deg)</label>
-                <input type="number" id="phaseSeparation" value="15" step="1">
+                <input type="number" id="phaseSeparation" value="0" step="1">
             </div>
             
             <h2>NOISE LEVEL</h2>
             <div class="control-group">
                 <label for="noiseStdDev">Std deviation</label>
-                <input type="number" id="noiseStdDev" value="3" step="1" min="0">
+                <input type="number" id="noiseStdDev" value="1" step="1" min="0">
             </div>
             
             <button id="toggleSimulation">Start</button>
@@ -240,7 +240,7 @@ button {
                 line: { color: 'black' }
             }], {
                 title: 'Power Spectrum',
-                xaxis: { title: 'Frequency (Hz)', autorange: true },
+                xaxis: { title: 'Frequency (Hz)', range: [0, 100] },
                 yaxis: { title: 'Power', autorange: true },
                 plot_bgcolor: '#e6ffe6',
                 paper_bgcolor: '#e6ffe6',
