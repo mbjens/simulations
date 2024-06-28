@@ -128,7 +128,7 @@
         <div class="control-panel">
             <div class="control-group">
                 <div>
-                    <label for="amplitude">Sine Wave Amplitude</label>
+                    <label for="amplitude">Sine Wave Amplitude (analog signal)</label>
                     <input id="amplitude" type="range" min="1" max="10" step="0.1" value="1" oninput="updateAmplitude(this.value)" />
                     <span id="amplitude-value">1 V</span>
                 </div>
@@ -166,87 +166,104 @@
         <div class="chart-container" id="chart"></div>
     </div>
 
-    <script>
-        let amplitude = 1;
-        let resolution = 16;
-        let range = 20;
-        let unit = 'V';
 
-        function calculateSlope() {
-            return (2 ** resolution) / range;
+<script>
+    let amplitude = 1;
+    let resolution = 16;
+    let range = 20;
+    let unit = 'V';
+
+    function calculateSlope() {
+        return (2 ** resolution - 1) / range;
+    }
+
+    function calculateYIntercept() {
+        return (2 ** resolution - 1) / 2;
+    }
+
+    function generateData(amplitude) {
+        const frequency = 2;
+        const samples = 1000;
+        const data = Array.from({ length: samples }, (_, i) => {
+            const t = i / samples;
+            const value = amplitude * Math.sin(2 * Math.PI * frequency * t);
+            return { x: t, y: value };
+        });
+        return data;
+    }
+
+    function generateDigitalData(analogData, slope, yIntercept) {
+        const maxDigitalValue = 2 ** resolution - 1;
+        return analogData.map(point => {
+            let digitalValue = Math.round(slope * point.y + yIntercept);
+            digitalValue = Math.max(0, Math.min(digitalValue, maxDigitalValue)); // Implement clipping
+            return { x: point.x, y: digitalValue };
+        });
+    }
+
+    function generateConvertedData(digitalData, slope, yIntercept) {
+        const halfRange = range / 2;
+        return digitalData.map(point => {
+            let convertedValue = (point.y - yIntercept) / slope;
+            convertedValue = Math.max(-halfRange, Math.min(convertedValue, halfRange)); // Implement clipping
+            return { x: point.x, y: convertedValue };
+        });
+    }
+
+    function plotSineWave(amplitude) {
+        const analogData = generateData(amplitude);
+        const slope = calculateSlope();
+        const yIntercept = calculateYIntercept();
+        const digitalData = generateDigitalData(analogData, slope, yIntercept);
+        const convertedData = generateConvertedData(digitalData, slope, yIntercept);
+
+        const conversionFactor = unit === 'mV' ? 1000 : 1;
+
+        const analogTrace = {
+            x: analogData.map(point => point.x),
+            y: analogData.map(point => point.y * conversionFactor),
+            mode: 'lines',
+            type: 'scatter',
+            name: 'Analog',
+            line: { color: '#4a90e2' }
+        };
+
+        const convertedTrace = {
+            x: convertedData.map(point => point.x),
+            y: convertedData.map(point => point.y * conversionFactor),
+            mode: 'lines',
+            type: 'scatter',
+            name: 'Digital',
+            line: { color: '#e74c3c' }
+        };
+
+        const minY = -amplitude * conversionFactor - 1;
+        const maxY =  amplitude * conversionFactor + 1;
+
+        const layout = {
+        xaxis: { 
+            showticklabels: false,  // Hide x-axis tick labels
+            title: null  // Remove x-axis title
+        },
+        yaxis: { 
+            title: {
+                text: `Signal (${unit})`,
+                font: { size: 20 }  // Increase y-axis title font size
+            },
+            tickfont: { size: 14 }  // Increase y-axis tick label font size
+        },
+        margin: { t: 20, b:20 },
+        plot_bgcolor: '#f8f8f8',
+        paper_bgcolor: '#f8f8f8',
+        legend: {
+            font: { size: 16 }  // Increase legend font size
         }
+    };
 
-        function calculateYIntercept() {
-            return (2 ** resolution) / 2;
-        }
+        const config = { displayModeBar: false };
 
-        function generateData(amplitude) {
-            const frequency = 2;
-            const samples = 1000;
-            const data = Array.from({ length: samples }, (_, i) => {
-                const t = i / samples;
-                const value = amplitude * Math.sin(2 * Math.PI * frequency * t);
-                return { x: t, y: value };
-            });
-            return data;
-        }
-
-        function generateDigitalData(analogData, slope, yIntercept) {
-            return analogData.map(point => {
-                const digitalValue = Math.round(slope * point.y + yIntercept);
-                return { x: point.x, y: digitalValue };
-            });
-        }
-
-        function generateConvertedData(digitalData, slope, yIntercept) {
-            return digitalData.map(point => {
-                const convertValue = (point.y - yIntercept) / slope;
-                return { x: point.x, y: convertValue };
-            });
-        }
-
-        function plotSineWave(amplitude) {
-            const analogData = generateData(amplitude);
-            const slope = calculateSlope();
-            const yIntercept = calculateYIntercept();
-            const digitalData = generateDigitalData(analogData, slope, yIntercept);
-            const convertedData = generateConvertedData(digitalData, slope, yIntercept);
-
-            const conversionFactor = unit === 'mV' ? 1000 : 1;
-
-            const analogTrace = {
-                x: analogData.map(point => point.x),
-                y: analogData.map(point => point.y * conversionFactor),
-                mode: 'lines',
-                type: 'scatter',
-                name: 'Analog',
-                line: { color: '#4a90e2' }
-            };
-
-            const convertedTrace = {
-                x: convertedData.map(point => point.x),
-                y: convertedData.map(point => point.y * conversionFactor),
-                mode: 'lines',
-                type: 'scatter',
-                name: 'Digital',
-                line: { color: '#e74c3c' }
-            };
-
-            const minY = Math.floor(-amplitude * conversionFactor) - 1;
-            const maxY = Math.ceil(amplitude * conversionFactor) + 1;
-
-            const layout = {
-                xaxis: { title: 'Time (s)' },
-                yaxis: { title: `Amplitude (${unit})`, range: [minY, maxY] },
-                margin: { t: 20 },
-                plot_bgcolor: '#f8f8f8',
-                paper_bgcolor: '#f8f8f8'
-            };
-
-            const config = { displayModeBar: false };
-
-            Plotly.newPlot('chart', [analogTrace, convertedTrace], layout, config);
-        }
+        Plotly.newPlot('chart', [analogTrace, convertedTrace], layout, config);
+    }
 
         function updateAmplitude(value) {
             if (unit === 'mV') {
