@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A/D Converter Demo</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            background-color: #4a90e2;
+            color: white;
+            padding: 20px 0;
+            margin: 0;
+        }
+        .control-panel { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px;
+            background-color: #e9f0f7;
+        }
+        .control-group { 
+            margin-bottom: 15px; 
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .control-group > div {
+            width: 48%;
+        }
+        label { 
+            display: block;
+            margin-bottom: 5px; 
+            font-weight: bold;
+            color: #333;
+        }
+        select { 
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
+        }
+        input[type="range"] { 
+            width: 70%;
+            margin-right: 10px;
+        }
+        .chart-container { 
+            height: 400px;
+            padding: 20px;
+            background-color: white;
+        }
+        /* Toggle switch styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin: 0 10px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .unit-label {
+            font-weight: bold;
+        }
+         input[type="range"] { 
+            width: 35vw;
+            margin-right: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>A/D Converter Demo</h1>
+        <div class="control-panel">
+            <div class="control-group">
+                <div>
+                    <label for="amplitude">Amplitude</label>
+                    <input id="amplitude" type="range" min="1" max="10" step="0.1" value="1" oninput="updateAmplitude(this.value)" />
+                    <span id="amplitude-value">1 V</span>
+                </div>
+                <div class="toggle-container">
+                    <span class="unit-label">mV</span>
+                    <label class="toggle-switch">
+                        <input id="unit-toggle" type="checkbox" onchange="toggleUnits()" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="unit-label">V</span>
+                </div>
+            </div>
+            <div class="control-group">
+                <div>
+                    <label for="resolution">Resolution</label>
+                    <select id="resolution" onchange="updateResolution(this.value)">
+                        <option value="4">4 bits</option>
+                        <option value="8">8 bits</option>
+                        <option value="12">12 bits</option>
+                        <option value="16" selected>16 bits</option>
+                        <option value="20">20 bits</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="range">Range</label>
+                    <select id="range" onchange="updateRange(this.value)">
+                        <option value="20">±10 V</option>
+                        <option value="10">±5 V</option>
+                        <option value="5">±2.5 V</option>
+                        <option value="2.5">±1.25 V</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="chart-container" id="chart"></div>
+    </div>
+
+    <script>
+        let amplitude = 1;
+        let resolution = 16;
+        let range = 20;
+        let unit = 'V';
+
+        function calculateSlope() {
+            return (2 ** resolution) / range;
+        }
+
+        function calculateYIntercept() {
+            return (2 ** resolution) / 2;
+        }
+
+        function generateData(amplitude) {
+            const frequency = 2;
+            const samples = 1000;
+            const data = Array.from({ length: samples }, (_, i) => {
+                const t = i / samples;
+                const value = amplitude * Math.sin(2 * Math.PI * frequency * t);
+                return { x: t, y: value };
+            });
+            return data;
+        }
+
+        function generateDigitalData(analogData, slope, yIntercept) {
+            return analogData.map(point => {
+                const digitalValue = Math.round(slope * point.y + yIntercept);
+                return { x: point.x, y: digitalValue };
+            });
+        }
+
+        function generateConvertedData(digitalData, slope, yIntercept) {
+            return digitalData.map(point => {
+                const convertValue = (point.y - yIntercept) / slope;
+                return { x: point.x, y: convertValue };
+            });
+        }
+
+        function plotSineWave(amplitude) {
+            const analogData = generateData(amplitude);
+            const slope = calculateSlope();
+            const yIntercept = calculateYIntercept();
+            const digitalData = generateDigitalData(analogData, slope, yIntercept);
+            const convertedData = generateConvertedData(digitalData, slope, yIntercept);
+
+            const conversionFactor = unit === 'mV' ? 1000 : 1;
+
+            const analogTrace = {
+                x: analogData.map(point => point.x),
+                y: analogData.map(point => point.y * conversionFactor),
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Analog',
+                line: { color: '#4a90e2' }
+            };
+
+            const convertedTrace = {
+                x: convertedData.map(point => point.x),
+                y: convertedData.map(point => point.y * conversionFactor),
+                mode: 'lines',
+                type: 'scatter',
+                name: 'Digital',
+                line: { color: '#e74c3c' }
+            };
+
+            const minY = Math.floor(-amplitude * conversionFactor) - 1;
+            const maxY = Math.ceil(amplitude * conversionFactor) + 1;
+
+            const layout = {
+                xaxis: { title: 'Time (s)' },
+                yaxis: { title: `Amplitude (${unit})`, range: [minY, maxY] },
+                margin: { t: 20 },
+                plot_bgcolor: '#f8f8f8',
+                paper_bgcolor: '#f8f8f8'
+            };
+
+            const config = { displayModeBar: false };
+
+            Plotly.newPlot('chart', [analogTrace, convertedTrace], layout, config);
+        }
+
+        function updateAmplitude(value) {
+            if (unit === 'mV') {
+                amplitude = value / 1000;
+            } else {
+                amplitude = value;
+            }
+            document.getElementById('amplitude-value').innerText = `${value} ${unit}`;
+            plotSineWave(amplitude);
+        }
+
+        function toggleUnits() {
+            const toggle = document.getElementById('unit-toggle');
+            const slider = document.getElementById('amplitude');
+            const value = slider.value;
+            if (toggle.checked) {
+                unit = 'V';
+                amplitude = parseFloat(value);
+            } else {
+                unit = 'mV';
+                amplitude = parseFloat(value) / 1000;
+            }
+            document.getElementById('amplitude-value').innerText = `${value} ${unit}`;
+            plotSineWave(amplitude);
+}
+
+        function updateResolution(value) {
+            resolution = parseInt(value);
+            plotSineWave(amplitude);
+        }
+
+        function updateRange(value) {
+            range = parseFloat(value);
+            plotSineWave(amplitude);
+        }
+
+        // Initial setup
+        document.getElementById('unit-toggle').checked = true;
+        plotSineWave(amplitude);
+    </script>
+</body>
+</html>
