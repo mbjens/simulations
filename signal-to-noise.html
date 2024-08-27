@@ -93,7 +93,7 @@
 
         <div class="delay-container">
             <label for="delaySlider">Delay time (ms): <span id="delayValue">100</span></label>
-            <input type="range" id="delaySlider" min="100" max="2000" step="100" value="100" class="slider">
+            <input type="range" id="delaySlider" min="10" max="1000" step="100" value="10" class="slider">
         </div>
     </div>
 
@@ -123,7 +123,7 @@
         let intervalId;
         let isRunning = false;
         let signalValue = 0;
-        let delayValue = 100;
+        let delayValue = 10;
 
         // Chart.js configuration
         let ctx = document.getElementById('myChart').getContext('2d');
