@@ -33,22 +33,24 @@
             border-radius: 4px;
             font-size: 14px;
         }
-        #canvasContainer {
-            position: relative;
-            margin-top: 10px;
-            background-color: #f8f9fa;
+        #canvasContainer, .tab-content {
+            background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 10px;
-            width: 100%;
+            padding: 15px;
+            width: calc(100% - 30px);  /* Subtracting total horizontal padding */
+            margin-top: 10px;
+        }
+        #canvasContainer {
             height: 360px;
+            position: relative;
         }
         #staticCanvas, #cursorCanvas {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            width: calc(100% - 20px);
-            height: calc(100% - 20px);
+            top: 15px;
+            left: 15px;
+            width: calc(100% - 30px);
+            height: calc(100% - 30px);
         }
         #cursorInfo {
             position: absolute;
@@ -79,10 +81,6 @@
         }
         .tab-content {
             display: none;
-            background-color: white;
-            padding: 15px;
-            border-radius: 0 4px 4px 4px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .tab-content.active {
             display: block;
@@ -364,7 +362,7 @@
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
             // Draw background
-            ctx.fillStyle = '#f8f9fa';
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
             // Draw grid
