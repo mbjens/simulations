@@ -3,59 +3,561 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JavaScript Simulations for Analytical Chemistry</title>
-    <link rel="stylesheet" href="styles.css"> <!-- Link to your CSS file -->
-    <style type="text/css"> p.space {line-height:125%;} </style>
+    <title>Interactive Titration Curve Simulator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin: 10px 0;
+            font-size: 24px;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            margin-top: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100px;
+            padding: 3px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #canvasContainer, .tab-content {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            width: calc(100% - 30px);  /* Subtracting total horizontal padding */
+            margin-top: 10px;
+        }
+        #canvasContainer {
+            height: 360px;
+            position: relative;
+        }
+        #staticCanvas, #cursorCanvas {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: calc(100% - 30px);
+            height: calc(100% - 30px);
+        }
+        #cursorInfo {
+            position: absolute;
+            background: rgba(255,255,255,0.9);
+            padding: 5px;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            display: none;
+            font-size: 12px;
+        }
+        .inactive {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .tab-button {
+            padding: 8px 12px;
+            cursor: pointer;
+            background-color: #ecf0f1;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            transition: background-color 0.3s;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .input-group {
+            display: flex;
+            justify-content: space-between;
+        }
+        .input-column {
+            width: 48%;
+        }
+        .input-item {
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome to this site for hosting JavaScript applications for Analytical Chemistry</h1>
-    </header>
-    <main>
-        <p>Click a link below to begin a simulation.</p>
-        <table>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/signal_averaging.html" class="button">Signal Averaging</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/boxcar_averaging.html" class="button">Boxcar Averaging</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/signal-to-noise.html" class="button">Signal-to-Noise</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/power_spectrum.html" class="button">Power Spectrum</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/nyquist.html" class="button">Nyquist Frequency</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/digital_filtering.html" class="button">Digital Filtering</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/A-D_Conversion.html" class="button">A/D Conversions</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://mbjens.github.io/simulations/titration.html" class="button">Acid/Base Titrations</a></td>
-            </tr>
-            <tr>
-                <td><a href="https://cv-sim.github.io/cv-sim-2/" class="button">Cyclic Voltammetry</a>      <a href="https://leomsmith.com/#/" class="button">(created by Leo Smith)</a></td>
-            </tr>
-        </table>
-    </main>
-    <footer>
-        <p></p>
-        <p class="space">
-        Questions, suggestions, and comments are welcomed!!<br>
-        <p></p>
-        <p class="space">   
-        Mark Jensen<br>
-        Chemistry Department, <a href="https://www.cord.edu" class="button">Concordia College</a><br>
-        Moorhead, MN<br>
-        <a href="mailto:jensen@cord.edu">jensen@cord.edu</a></p>
-        <p></p>
-        <p>&copy; 2024 Mark Jensen</p>
- 
-    </footer>
+    <h1>Interactive Titration Curve Simulator</h1>
+    
+    <div id="tab-buttons">
+        <button class="tab-button active" data-tab="acid">Acid Titrated with Strong Base</button>
+        <button class="tab-button" data-tab="base">Base Titrated with Strong Acid</button>
+    </div>
+
+    <div id="acid-tab" class="tab-content active">
+        <div class="input-group">
+            <div class="input-column">
+                <div class="input-item">
+                    <label for="acidType">Type of Acid:</label>
+                    <select id="acidType">
+                        <option value="monoprotic">Monoprotic</option>
+                        <option value="diprotic">Diprotic</option>
+                        <option value="triprotic">Triprotic</option>
+                    </select>
+                </div>
+                <div class="input-item">
+                    <label for="pKa1">pK<sub>a1</sub> of acid:</label>
+                    <input type="number" id="pKa1" value="3.0" step="0.1">
+                </div>
+                <div class="input-item" id="pKa2Container">
+                    <label for="pKa2">pK<sub>a2</sub> of acid:</label>
+                    <input type="number" id="pKa2" value="6.0" step="0.1" disabled>
+                </div>
+                <div class="input-item" id="pKa3Container">
+                    <label for="pKa3">pK<sub>a3</sub> of acid:</label>
+                    <input type="number" id="pKa3" value="9.0" step="0.1" disabled>
+                </div>
+            </div>
+            <div class="input-column">
+                <div class="input-item">
+                    <label for="acidConcentration">Acid conc. (M):</label>
+                    <input type="number" id="acidConcentration" value="0.1" step="0.05" min="0">
+                </div>
+                <div class="input-item">
+                    <label for="acidVolume">Acid vol. (mL):</label>
+                    <input type="number" id="acidVolume" value="50" step="5" min="0">
+                </div>
+                <div class="input-item">
+                    <label for="baseConcentration">Base conc. (M):</label>
+                    <input type="number" id="baseConcentration" value="0.1" step="0.05" min="0">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="base-tab" class="tab-content">
+        <div class="input-group">
+            <div class="input-column">
+                <div class="input-item">
+                    <label for="baseType">Type of Base:</label>
+                    <select id="baseType">
+                        <option value="monoprotic">Monoprotic</option>
+                        <option value="diprotic">Diprotic</option>
+                        <option value="triprotic">Triprotic</option>
+                    </select>
+                </div>
+                <div class="input-item">
+                    <label for="pKb1">pK<sub>b1</sub> of base:</label>
+                    <input type="number" id="pKb1" value="3.0" step="0.1">
+                </div>
+                <div class="input-item" id="pKb2Container">
+                    <label for="pKb2">pK<sub>b2</sub> of base:</label>
+                    <input type="number" id="pKb2" value="6.0" step="0.1" disabled>
+                </div>
+                <div class="input-item" id="pKb3Container">
+                    <label for="pKb3">pK<sub>b3</sub> of base:</label>
+                    <input type="number" id="pKb3" value="9.0" step="0.1" disabled>
+                </div>
+            </div>
+            <div class="input-column">
+                <div class="input-item">
+                    <label for="baseConcentration">Base conc. (M):</label>
+                    <input type="number" id="baseConcentration" value="0.1" step="0.05" min="0">
+                </div>
+                <div class="input-item">
+                    <label for="baseVolume">Base vol. (mL):</label>
+                    <input type="number" id="baseVolume" value="50" step="5" min="0">
+                </div>
+                <div class="input-item">
+                    <label for="acidConcentration">Acid conc. (M):</label>
+                    <input type="number" id="acidConcentration" value="0.1" step="0.05" min="0">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvasContainer">
+        <canvas id="staticCanvas"></canvas>
+        <canvas id="cursorCanvas"></canvas>
+        <div id="cursorInfo"></div>
+    </div>
+
+    <script>
+        let globalCurveData = [];
+        let globalScaleX, globalScaleY, globalUnscaleX, globalUnscaleY;
+        let canvasWidth, canvasHeight;
+        const padding = 50;
+        let currentTab = 'acid';
+
+        function updateCanvasSize() {
+            const container = document.getElementById('canvasContainer');
+            canvasWidth = container.clientWidth - 40;
+            canvasHeight = container.clientHeight - 40;
+            
+            const staticCanvas = document.getElementById('staticCanvas');
+            const cursorCanvas = document.getElementById('cursorCanvas');
+            
+            staticCanvas.width = canvasWidth;
+            staticCanvas.height = canvasHeight;
+            cursorCanvas.width = canvasWidth;
+            cursorCanvas.height = canvasHeight;
+        }
+
+        function updateTypeControls(type) {
+            const isAcid = type === 'acid';
+            const selectId = isAcid ? 'acidType' : 'baseType';
+            const pK2ContainerId = isAcid ? 'pKa2Container' : 'pKb2Container';
+            const pK3ContainerId = isAcid ? 'pKa3Container' : 'pKb3Container';
+            const pK2InputId = isAcid ? 'pKa2' : 'pKb2';
+            const pK3InputId = isAcid ? 'pKa3' : 'pKb3';
+
+            const selectedType = document.getElementById(selectId).value;
+            const pK2Container = document.getElementById(pK2ContainerId);
+            const pK3Container = document.getElementById(pK3ContainerId);
+            const pK2Input = document.getElementById(pK2InputId);
+            const pK3Input = document.getElementById(pK3InputId);
+
+            if (selectedType === 'monoprotic') {
+                pK2Container.classList.add('inactive');
+                pK3Container.classList.add('inactive');
+                pK2Input.disabled = true;
+                pK3Input.disabled = true;
+            } else if (selectedType === 'diprotic') {
+                pK2Container.classList.remove('inactive');
+                pK3Container.classList.add('inactive');
+                pK2Input.disabled = false;
+                pK3Input.disabled = true;
+            } else if (selectedType === 'triprotic') {
+                pK2Container.classList.remove('inactive');
+                pK3Container.classList.remove('inactive');
+                pK2Input.disabled = false;
+                pK3Input.disabled = false;
+            }
+
+            updateTitrationCurve();
+        }
+
+        function calculateChargeBalanceRatio(pH, pK1, pK2, pK3, analyteConcentration, analyteVolume, titrantConcentration, titrantVolume, analyteType) {
+            const totalVolume = analyteVolume + titrantVolume;
+            const hydrogenConcentration = 10 ** -pH;
+            const Kw = 10 ** -14;
+            const hydroxideConcentration = Kw / hydrogenConcentration;
+            const formalConcentration = analyteConcentration * analyteVolume / totalVolume;
+            const titrantIonConcentration = titrantConcentration * titrantVolume / totalVolume;
+            
+            const isAcid = currentTab === 'acid';
+            if (analyteType === 'monoprotic') {
+                const K = 10 ** -pK1;
+                const denominator = (hydrogenConcentration + K);
+                const alpha = isAcid ? (K / denominator) : (hydrogenConcentration / denominator);
+                const ionConcentration = alpha * formalConcentration;
+                return isAcid ? 
+                    (hydrogenConcentration + titrantIonConcentration) / (ionConcentration + hydroxideConcentration) :
+                    (hydrogenConcentration + ionConcentration) / (titrantIonConcentration + hydroxideConcentration);
+            } else if (analyteType === 'diprotic') {
+                const K1 = 10 ** -pK1;
+                const K2 = 10 ** -pK2;
+                const denominator = hydrogenConcentration**2 + K1*hydrogenConcentration + K1*K2;
+                const alpha1 = (K1*hydrogenConcentration / denominator);
+                const alpha2 = isAcid ? (K1*K2 / denominator) : (hydrogenConcentration**2 / denominator);
+                const ion1Concentration = alpha1 * formalConcentration;
+                const ion2Concentration = alpha2 * formalConcentration;
+                return isAcid ?
+                    (hydrogenConcentration + titrantIonConcentration) / (ion1Concentration + 2*ion2Concentration + hydroxideConcentration) :
+                    (hydrogenConcentration + 2*ion2Concentration + ion1Concentration) / (titrantIonConcentration + hydroxideConcentration);
+            } else if (analyteType === 'triprotic') {
+                const K1 = 10 ** -pK1;
+                const K2 = 10 ** -pK2;
+                const K3 = 10 ** -pK3;
+                const denominator = (hydrogenConcentration**3 + K1*hydrogenConcentration**2 + K1*K2*hydrogenConcentration + K1*K2*K3);
+                const alpha1 = isAcid ? (K1*hydrogenConcentration**2 / denominator) : (K1*K2*hydrogenConcentration / denominator);
+                const alpha2 = isAcid ? (K1*K2*hydrogenConcentration / denominator) : (K1*hydrogenConcentration**2 / denominator);
+                const alpha3 = isAcid ? (K1*K2*K3 / denominator) : (hydrogenConcentration**3 / denominator);
+                const ion1Concentration = alpha1 * formalConcentration;
+                const ion2Concentration = alpha2 * formalConcentration;
+                const ion3Concentration = alpha3 * formalConcentration;
+                return isAcid ?
+                    (hydrogenConcentration + titrantIonConcentration) / (ion1Concentration + 2*ion2Concentration + 3*ion3Concentration + hydroxideConcentration) :
+                    (hydrogenConcentration + 3*ion3Concentration + 2*ion2Concentration + ion1Concentration) / (titrantIonConcentration + hydroxideConcentration);
+            }
+        }
+
+        function solvePH(analyteType, pK1, pK2, pK3, analyteConcentration, analyteVolume, titrantConcentration, titrantVolume, tolerance = 1e-7) {
+            let pHLow = 0;
+            let pHHigh = 14;
+            let pHMid, ratio;
+
+            while (pHHigh - pHLow > tolerance) {
+                pHMid = (pHLow + pHHigh) / 2;
+                ratio = calculateChargeBalanceRatio(pHMid, pK1, pK2, pK3, analyteConcentration, analyteVolume, titrantConcentration, titrantVolume, analyteType);
+
+                if (ratio > 1) {
+                    pHLow = pHMid;
+                } else {
+                    pHHigh = pHMid;
+                }
+            }
+
+            return pHMid;
+        }
+
+        function calculateTitrationParameters(analyteType, analyteConcentration, analyteVolume, titrantConcentration) {
+            const equivalenceVolume = analyteConcentration * analyteVolume / titrantConcentration;
+            const finalVolume = analyteType === 'triprotic' ? 4 * equivalenceVolume : 
+                                (analyteType === 'diprotic' ? 3 * equivalenceVolume : 2 * equivalenceVolume);
+
+            return {
+                equivalenceVolume: equivalenceVolume,
+                finalVolume: finalVolume
+            };
+        }
+
+        function generateTitrationCurve(analyteType, pK1, pK2, pK3, analyteConcentration, analyteVolume, titrantConcentration) {
+            const params = calculateTitrationParameters(analyteType, analyteConcentration, analyteVolume, titrantConcentration);
+            const points = analyteType === 'triprotic' ? 600 : (analyteType === 'diprotic' ? 400 : 200);
+            const volumeStep = params.finalVolume / points;
+
+            const curveData = [];
+
+            for (let i = 0; i <= points; i++) {
+                const titrantVolume = i * volumeStep;
+                const pH = solvePH(analyteType, pK1, pK2, pK3, analyteConcentration, analyteVolume, titrantConcentration, titrantVolume);
+                curveData.push({ titrantVolume, pH });
+            }
+
+            return curveData;
+        }
+
+        function plotTitrationCurve(curveData) {
+            updateCanvasSize();
+            const staticCanvas = document.getElementById('staticCanvas');
+            const ctx = staticCanvas.getContext('2d');
+
+            // Find min and max values
+            const minX = 0;
+            const maxX = Math.max(...curveData.map(point => point.titrantVolume));
+            const minY = Math.min(...curveData.map(point => point.pH));
+            const maxY = Math.max(...curveData.map(point => point.pH));
+
+            // Scaling functions
+            globalScaleX = (x) => padding + (x - minX) / (maxX - minX) * (canvasWidth - 2 * padding);
+            globalScaleY = (y) => canvasHeight - padding - (y - minY) / (maxY - minY) * (canvasHeight - 2 * padding);
+
+            // Inverse scaling functions for cursor
+            globalUnscaleX = (x) => (x - padding) / (canvasWidth - 2 * padding) * (maxX - minX) + minX;
+            globalUnscaleY = (y) => maxY - (y - (canvasHeight - padding)) / (canvasHeight - 2 * padding) * (maxY - minY);
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Draw grid
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 10; i++) {
+                const x = padding + i * (canvasWidth - 2 * padding) / 10;
+                const y = padding + i * (canvasHeight - 2 * padding) / 10;
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, canvasHeight - padding);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(canvasWidth - padding, y);
+                ctx.stroke();
+            }
+
+            // Draw axes
+            ctx.strokeStyle = '#495057';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvasHeight - padding);
+            ctx.lineTo(canvasWidth - padding, canvasHeight - padding);
+            ctx.stroke();
+
+            // Plot data
+            ctx.beginPath();
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 3;
+            ctx.moveTo(globalScaleX(curveData[0].titrantVolume), globalScaleY(curveData[0].pH));
+            for (let point of curveData) {
+                ctx.lineTo(globalScaleX(point.titrantVolume), globalScaleY(point.pH));
+            }
+            ctx.stroke();
+
+            // Add axis labels and tick marks
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#495057';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // X-axis
+            for (let i = 0; i <= 5; i++) {
+                const x = minX + (maxX - minX) * i / 5;
+                const xPixel = globalScaleX(x);
+                ctx.moveTo(xPixel, canvasHeight - padding);
+                ctx.lineTo(xPixel, canvasHeight - padding + 5);
+                ctx.stroke();
+                ctx.fillText(x.toFixed(1), xPixel, canvasHeight - padding + 15);
+            }
+
+            // Y-axis
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 5; i++) {
+                const y = minY + (maxY - minY) * i / 5;
+                const yPixel = globalScaleY(y);
+                ctx.moveTo(padding, yPixel);
+                ctx.lineTo(padding - 5, yPixel);
+                ctx.stroke();
+                ctx.fillText(y.toFixed(1), padding - 10, yPixel);
+            }
+
+            // Add labels
+            ctx.font = 'bold 16px Arial';
+            ctx.fillStyle = '#2c3e50';
+            ctx.textAlign = 'center';
+            ctx.fillText(currentTab === 'acid' ? 'Base Volume Added (mL)' : 'Acid Volume Added (mL)', canvasWidth / 2, canvasHeight - 10);
+            ctx.save();
+            ctx.translate(15, canvasHeight / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('pH', 0, 0);
+            ctx.restore();
+        }
+
+        function setupCursor() {
+            updateCanvasSize();
+            const cursorCanvas = document.getElementById('cursorCanvas');
+            const ctx = cursorCanvas.getContext('2d');
+            const cursorInfo = document.getElementById('cursorInfo');
+
+            cursorCanvas.addEventListener('mousemove', function(event) {
+                const rect = cursorCanvas.getBoundingClientRect();
+                const mouseX = event.clientX - rect.left;
+                
+                if (mouseX > padding && mouseX < canvasWidth - padding) {
+                    const titrantVolume = globalUnscaleX(mouseX);
+                    const closestPoint = globalCurveData.reduce((prev, curr) => 
+                        Math.abs(curr.titrantVolume - titrantVolume) < Math.abs(prev.titrantVolume - titrantVolume) ? curr : prev
+                    );
+                    
+                    const x = globalScaleX(closestPoint.titrantVolume);
+                    const y = globalScaleY(closestPoint.pH);
+
+                    // Clear previous cursor point
+                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                    
+                    // Draw the cursor point
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'red';
+                    ctx.fill();
+
+                    cursorInfo.style.display = 'block';
+                    cursorInfo.style.left = (x + 10) + 'px';
+                    cursorInfo.style.top = (y + 10) + 'px';
+                    cursorInfo.style.fontSize = '14px';
+                    cursorInfo.style.padding = '8px';
+                    cursorInfo.textContent = `${currentTab === 'acid' ? 'Base' : 'Acid'} Volume: ${closestPoint.titrantVolume.toFixed(2)} mL, pH: ${closestPoint.pH.toFixed(2)}`;
+                } else {
+                    cursorInfo.style.display = 'none';
+                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+                }
+            });
+
+            cursorCanvas.addEventListener('mouseout', function() {
+                cursorInfo.style.display = 'none';
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            });
+        }
+
+        function updateTitrationCurve() {
+            const isAcid = currentTab === 'acid';
+            const analyteType = document.getElementById(isAcid ? 'acidType' : 'baseType').value;
+            const pK1 = parseFloat(document.getElementById(isAcid ? 'pKa1' : 'pKb1').value);
+            const pK2 = parseFloat(document.getElementById(isAcid ? 'pKa2' : 'pKb2').value);
+            const pK3 = parseFloat(document.getElementById(isAcid ? 'pKa3' : 'pKb3').value);
+            const analyteConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acidConcentration' : 'baseConcentration').value));
+            const analyteVolume = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acidVolume' : 'baseVolume').value));
+            const titrantConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'baseConcentration' : 'acidConcentration').value));
+
+            // Convert pKb to pKa for bases
+            let pKa1, pKa2, pKa3;
+            if (isAcid) {
+                pKa1 = pK1;
+                pKa2 = pK2;
+                pKa3 = pK3;
+            } else {
+                if (analyteType === 'monoprotic') {
+                    pKa1 = 14 - pK1;
+                } else if (analyteType === 'diprotic') {
+                    pKa1 = 14 - pK2;
+                    pKa2 = 14 - pK1;
+                } else if (analyteType === 'triprotic') {
+                    pKa1 = 14 - pK3;
+                    pKa2 = 14 - pK2;
+                    pKa3 = 14 - pK1;
+                }
+            }
+
+            globalCurveData = generateTitrationCurve(analyteType, pKa1, pKa2, pKa3, analyteConcentration, analyteVolume, titrantConcentration);
+            plotTitrationCurve(globalCurveData);
+        }
+
+        // Add event listeners
+        document.getElementById('acidType').addEventListener('change', () => updateTypeControls('acid'));
+        document.getElementById('baseType').addEventListener('change', () => updateTypeControls('base'));
+        document.getElementById('pKa1').addEventListener('input', updateTitrationCurve);
+        document.getElementById('pKa2').addEventListener('input', updateTitrationCurve);
+        document.getElementById('pKa3').addEventListener('input', updateTitrationCurve);
+        document.getElementById('pKb1').addEventListener('input', updateTitrationCurve);
+        document.getElementById('pKb2').addEventListener('input', updateTitrationCurve);
+        document.getElementById('pKb3').addEventListener('input', updateTitrationCurve);
+        document.getElementById('acidConcentration').addEventListener('input', updateTitrationCurve);
+        document.getElementById('acidVolume').addEventListener('input', updateTitrationCurve);
+        document.getElementById('baseConcentration').addEventListener('input', updateTitrationCurve);
+        document.getElementById('baseVolume').addEventListener('input', updateTitrationCurve);
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const tab = this.getAttribute('data-tab');
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById(`${tab}-tab`).classList.add('active');
+                currentTab = tab;
+                updateTypeControls(tab);
+            });
+        });
+
+        // Initial setup
+        window.onload = function() {
+            updateTypeControls('acid');
+            setupCursor();
+            updateTitrationCurve();
+        };
+
+        // Add window resize event listener
+        window.addEventListener('resize', function() {
+            updateTitrationCurve();
+            setupCursor();
+        });
+    </script>
+
 </body>
 </html>
