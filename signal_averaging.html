@@ -224,8 +224,8 @@
                         display: false // Remove x-axis
                     },
                     y: {
-                        min: -4,
-                        max: 4,
+                        min: -2,
+                        max: 2,
                         title: {
                             display: true,
                             text: 'Current scan',
@@ -265,8 +265,8 @@
                         display: false // Remove x-axis
                     },
                     y: {
-                        min: -4,
-                        max: 4,
+                        min: -2,
+                        max: 2,
                         title: {
                             display: true,
                             text: 'Average of all scans',
@@ -315,7 +315,7 @@
                 // Update scan count
                 updateScanCount(i + 1, repeatCount);
 
-                await sleep(100); // Delay for 100ms
+                await sleep(50); // Delay for 100ms
             }
         }
 
