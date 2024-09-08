@@ -284,8 +284,8 @@
             let allTotals = []; // Clear previous totals
             let average = new Array(200).fill(0); // Initialize average array
             const signalMagnitude = Number(document.getElementById('signalMagnitude').value);
-            myChart.options.scales.y.max = 4 + signalMagnitude;
-            averageChart.options.scales.y.max = 4 + signalMagnitude;
+            myChart.options.scales.y.max = 2 + signalMagnitude;
+            averageChart.options.scales.y.max = 2 + signalMagnitude;
 
             for (let i = 0; i < repeatCount; i++) {
                 const noise = createNoiseArray();
