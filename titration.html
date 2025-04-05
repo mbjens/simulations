@@ -131,16 +131,16 @@
             </div>
             <div class="input-column">
                 <div class="input-item">
-                    <label for="acidConcentration">Acid conc. (M):</label>
-                    <input type="number" id="acidConcentration" value="0.1" step="0.05" min="0">
+                    <label for="acid_concentration">Acid conc. (M):</label>
+                    <input type="number" id="acid_concentration" value="0.1" step="0.05" min="0">
                 </div>
                 <div class="input-item">
-                    <label for="acidVolume">Acid vol. (mL):</label>
-                    <input type="number" id="acidVolume" value="50" step="5" min="0">
+                    <label for="acid_volume">Acid vol. (mL):</label>
+                    <input type="number" id="acid_volume" value="50" step="5" min="0">
                 </div>
                 <div class="input-item">
-                    <label for="baseConcentration">Base conc. (M):</label>
-                    <input type="number" id="baseConcentration" value="0.1" step="0.05" min="0">
+                    <label for="base_concentration_acid_tab">Base conc. (M):</label>
+                    <input type="number" id="base_concentration_acid_tab" value="0.1" step="0.05" min="0">
                 </div>
             </div>
         </div>
@@ -172,16 +172,16 @@
             </div>
             <div class="input-column">
                 <div class="input-item">
-                    <label for="baseConcentration">Base conc. (M):</label>
-                    <input type="number" id="baseConcentration" value="0.1" step="0.05" min="0">
+                    <label for="base_concentration">Base conc. (M):</label>
+                    <input type="number" id="base_concentration" value="0.1" step="0.05" min="0">
                 </div>
                 <div class="input-item">
-                    <label for="baseVolume">Base vol. (mL):</label>
-                    <input type="number" id="baseVolume" value="50" step="5" min="0">
+                    <label for="base_volume">Base vol. (mL):</label>
+                    <input type="number" id="base_volume" value="50" step="5" min="0">
                 </div>
                 <div class="input-item">
-                    <label for="acidConcentration">Acid conc. (M):</label>
-                    <input type="number" id="acidConcentration" value="0.1" step="0.05" min="0">
+                    <label for="acid_concentration_base_tab">Acid conc. (M):</label>
+                    <input type="number" id="acid_concentration_base_tab" value="0.1" step="0.05" min="0">
                 </div>
             </div>
         </div>
@@ -491,9 +491,11 @@
             const pK1 = parseFloat(document.getElementById(isAcid ? 'pKa1' : 'pKb1').value);
             const pK2 = parseFloat(document.getElementById(isAcid ? 'pKa2' : 'pKb2').value);
             const pK3 = parseFloat(document.getElementById(isAcid ? 'pKa3' : 'pKb3').value);
-            const analyteConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acidConcentration' : 'baseConcentration').value));
-            const analyteVolume = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acidVolume' : 'baseVolume').value));
-            const titrantConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'baseConcentration' : 'acidConcentration').value));
+            
+            // Use the correct IDs for concentration and volume inputs
+            const analyteConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acid_concentration' : 'base_concentration').value));
+            const analyteVolume = Math.max(0, parseFloat(document.getElementById(isAcid ? 'acid_volume' : 'base_volume').value));
+            const titrantConcentration = Math.max(0, parseFloat(document.getElementById(isAcid ? 'base_concentration_acid_tab' : 'acid_concentration_base_tab').value));
 
             // Convert pKb to pKa for bases
             let pKa1, pKa2, pKa3;
@@ -527,10 +529,12 @@
         document.getElementById('pKb1').addEventListener('input', updateTitrationCurve);
         document.getElementById('pKb2').addEventListener('input', updateTitrationCurve);
         document.getElementById('pKb3').addEventListener('input', updateTitrationCurve);
-        document.getElementById('acidConcentration').addEventListener('input', updateTitrationCurve);
-        document.getElementById('acidVolume').addEventListener('input', updateTitrationCurve);
-        document.getElementById('baseConcentration').addEventListener('input', updateTitrationCurve);
-        document.getElementById('baseVolume').addEventListener('input', updateTitrationCurve);
+        document.getElementById('acid_concentration').addEventListener('input', updateTitrationCurve);
+        document.getElementById('acid_volume').addEventListener('input', updateTitrationCurve);
+        document.getElementById('base_concentration').addEventListener('input', updateTitrationCurve);
+        document.getElementById('base_volume').addEventListener('input', updateTitrationCurve);
+        document.getElementById('base_concentration_acid_tab').addEventListener('input', updateTitrationCurve);
+        document.getElementById('acid_concentration_base_tab').addEventListener('input', updateTitrationCurve);
 
         // Tab switching
         document.querySelectorAll('.tab-button').forEach(button => {
