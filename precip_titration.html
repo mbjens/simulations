@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KCl-AgNO₃ Titration Simulator</title>
+  
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Recharts for charting -->
+  <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.min.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* Additional custom styles */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f5f5f5;
+      margin: 0;
+      padding: 20px;
+    }
+    
+    input[type="range"] {
+      -webkit-appearance: none;
+      height: 7px;
+      background: #e5e7eb;
+      border-radius: 5px;
+      margin: 10px 0;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    input[type="number"] {
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      width: 100%;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+    
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+    
+    .shadow-md {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    // Destructure components from Recharts
+    const {
+      LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+      ReferenceLine, ResponsiveContainer
+    } = Recharts;
+    
+    // Main titration simulator component
+    const TitrationSimulator = () => {
+      // State variables for user inputs
+      const [chlorideConcentration, setChlorideConcentration] = React.useState(0.1);
+      const [chlorideVolume, setChlorideVolume] = React.useState(50);
+      const [silverNitrateConcentration, setSilverNitrateConcentration] = React.useState(0.1);
+      const [kspValue, setKspValue] = React.useState(1.8e-10); // Default Ksp value for AgCl
+      
+      // State variable for current simulation volume (for animation/slider)
+      const [currentVolume, setCurrentVolume] = React.useState(0);
+    
+      // State variables for validation
+      const [inputErrors, setInputErrors] = React.useState({});
+    
+      // Calculate equivalence point
+      const equivalencePoint = React.useMemo(() => {
+        return (chlorideConcentration * chlorideVolume) / silverNitrateConcentration;
+      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration]);
+    
+      // Validate inputs and update errors
+      const validateInputs = () => {
+        const errors = {};
+        
+        if (chlorideConcentration <= 0) errors.chlorideConcentration = "Concentration must be positive";
+        if (chlorideVolume <= 0) errors.chlorideVolume = "Volume must be positive";
+        if (silverNitrateConcentration <= 0) errors.silverNitrateConcentration = "Concentration must be positive";
+        if (kspValue <= 0) errors.kspValue = "Ksp must be positive";
+        
+        setInputErrors(errors);
+        return Object.keys(errors).length === 0;
+      };
+    
+      // Handle input changes
+      const handleChange = (setter) => (e) => {
+        const value = parseFloat(e.target.value);
+        if (!isNaN(value)) {
+          setter(value);
+        }
+      };
+    
+      // Effect to validate inputs when they change
+      React.useEffect(() => {
+        validateInputs();
+        // Reset current volume when inputs change
+        setCurrentVolume(0);
+      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration, kspValue]);
+    
+      // Function to calculate pAg using charge balance method
+      const calculatePAg = (volumeAdded) => {
+        // Skip calculation for exactly 0 volume to avoid issues
+        if (volumeAdded <= 0) return 10; // Return a high pAg value for 0 volume
+        
+        // Step 1: Calculate total volume
+        const totalVolume = chlorideVolume + volumeAdded; // in mL
+        
+        // Step 2: Calculate potassium concentration
+        const potassiumConcentration = (chlorideConcentration * chlorideVolume) / totalVolume;
+        
+        // Step 3: Calculate nitrate concentration
+        const nitrateConcentration = (silverNitrateConcentration * volumeAdded) / totalVolume;
+        
+        // Steps 4-8: Iteratively find pAg value that gives a charge balance ratio of 1
+        // We'll use a binary search algorithm to find the pAg
+        let minPAg = 0;   // Corresponds to [Ag+] = 1 M (very high)
+        let maxPAg = 15;  // Corresponds to [Ag+] = 10^-15 M (very low)
+        let currentPAg;
+        let iterations = 0;
+        const maxIterations = 50;
+        const tolerance = 1e-6;
+        
+        // Binary search loop
+        while ((maxPAg - minPAg) > tolerance && iterations < maxIterations) {
+          currentPAg = (minPAg + maxPAg) / 2;
+          
+          // Step 5: Calculate silver concentration from pAg
+          const silverConcentration = Math.pow(10, -currentPAg);
+          
+          // Step 6: Calculate chloride concentration from Ksp
+          const chlorideConcentration = kspValue / silverConcentration;
+          
+          // Step 7: Calculate the charge balance ratio
+          const positiveCharges = silverConcentration + potassiumConcentration;
+          const negativeCharges = nitrateConcentration + chlorideConcentration;
+          const ratio = positiveCharges / negativeCharges;
+          
+          // Step 8: Adjust pAg based on ratio
+          if (ratio > 1) {
+            // Too many positive charges, need higher pAg (lower [Ag+])
+            minPAg = currentPAg;
+          } else {
+            // Too many negative charges, need lower pAg (higher [Ag+])
+            maxPAg = currentPAg;
+          }
+          
+          iterations++;
+        }
+        
+        return currentPAg;
+      };
+    
+      // Calculate ion concentrations at the current volume
+      const calculateIonConcentrations = (volumeAdded) => {
+        if (volumeAdded <= 0) return { silver: 0, chloride: chlorideConcentration, potassium: chlorideConcentration, nitrate: 0 };
+        
+        // Calculate total volume
+        const totalVolume = chlorideVolume + volumeAdded; // in mL
+        
+        // Calculate potassium concentration
+        const potassiumConcentration = (chlorideConcentration * chlorideVolume) / totalVolume;
+        
+        // Calculate nitrate concentration
+        const nitrateConcentration = (silverNitrateConcentration * volumeAdded) / totalVolume;
+        
+        // Get pAg value
+        const pAg = calculatePAg(volumeAdded);
+        
+        // Calculate [Ag+] from pAg
+        const silverConcentration = Math.pow(10, -pAg);
+        
+        // Calculate [Cl-] from Ksp
+        const chlorideConcentration = kspValue / silverConcentration;
+        
+        return {
+          silver: silverConcentration,
+          chloride: chlorideConcentration,
+          potassium: potassiumConcentration,
+          nitrate: nitrateConcentration,
+          pAg: pAg
+        };
+      };
+    
+      // Description of the current state of the titration
+      const getTitrationState = () => {
+        if (currentVolume === 0) return "Initial state";
+        
+        // Get ion concentrations at current volume
+        const ionConc = calculateIonConcentrations(currentVolume);
+        
+        if (Math.abs(currentVolume - equivalencePoint) < equivalencePoint * 0.02) {
+          return `At equivalence point: [Ag⁺][Cl⁻] = Ksp = ${kspValue.toExponential(2)}`;
+        }
+        
+        if (currentVolume < equivalencePoint) {
+          return `Before equivalence point: excess Cl⁻ ions (${ionConc.chloride.toExponential(3)} M)`;
+        }
+        
+        return `After equivalence point: excess Ag⁺ ions (${ionConc.silver.toExponential(3)} M)`;
+      };
+    
+      // Generate titration curve data
+      const titrationData = React.useMemo(() => {
+        if (!validateInputs()) return [];
+        
+        const numberOfPoints = 200;
+        const maxVolume = 2 * equivalencePoint;
+        const volumeStep = maxVolume / (numberOfPoints - 1);
+        
+        // Create data points
+        return Array.from({ length: numberOfPoints }, (_, i) => {
+          // Start at a small volume instead of exactly 0 to avoid division by zero issues
+          const volume = i === 0 ? equivalencePoint * 0.001 : i * volumeStep;
+          const pAg = calculatePAg(volume);
+          
+          return { volume, pAg };
+        });
+      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration, kspValue, equivalencePoint]);
+    
+      // Find min and max pAg for axis scaling
+      const pAgRange = React.useMemo(() => {
+        if (titrationData.length === 0) return { min: 0, max: 10 };
+        
+        const pAgValues = titrationData.map(point => point.pAg);
+        return { 
+          min: Math.floor(Math.min(...pAgValues)),
+          max: Math.ceil(Math.max(...pAgValues))
+        };
+      }, [titrationData]);
+    
+      // Generate current point data for indicator
+      const currentPoint = React.useMemo(() => {
+        if (currentVolume <= 0 || !validateInputs()) return null;
+        
+        const pAg = calculatePAg(currentVolume);
+        return { volume: currentVolume, pAg };
+      }, [currentVolume, validateInputs]);
+    
+      return (
+        <div className="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-md">
+          <h1 className="text-2xl font-bold text-center mb-6">KCl-AgNO₃ Titration Simulator</h1>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Chloride Concentration (M)
+                <input
+                  type="number"
+                  value={chlorideConcentration}
+                  onChange={handleChange(setChlorideConcentration)}
+                  className={`mt-1 block w-full rounded-md ${
+                    inputErrors.chlorideConcentration ? 'border-red-500' : ''
+                  }`}
+                  step="0.01"
+                  min="0"
+                />
+                {inputErrors.chlorideConcentration && (
+                  <p className="text-red-500 text-xs mt-1">{inputErrors.chlorideConcentration}</p>
+                )}
+              </label>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Chloride Volume (mL)
+                <input
+                  type="number"
+                  value={chlorideVolume}
+                  onChange={handleChange(setChlorideVolume)}
+                  className={`mt-1 block w-full rounded-md ${
+                    inputErrors.chlorideVolume ? 'border-red-500' : ''
+                  }`}
+                  step="1"
+                  min="0"
+                />
+                {inputErrors.chlorideVolume && (
+                  <p className="text-red-500 text-xs mt-1">{inputErrors.chlorideVolume}</p>
+                )}
+              </label>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Silver Nitrate Concentration (M)
+                <input
+                  type="number"
+                  value={silverNitrateConcentration}
+                  onChange={handleChange(setSilverNitrateConcentration)}
+                  className={`mt-1 block w-full rounded-md ${
+                    inputErrors.silverNitrateConcentration ? 'border-red-500' : ''
+                  }`}
+                  step="0.01"
+                  min="0"
+                />
+                {inputErrors.silverNitrateConcentration && (
+                  <p className="text-red-500 text-xs mt-1">{inputErrors.silverNitrateConcentration}</p>
+                )}
+              </label>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Ksp Value for AgCl
+                <input
+                  type="number"
+                  value={kspValue}
+                  onChange={handleChange(setKspValue)}
+                  className={`mt-1 block w-full rounded-md ${
+                    inputErrors.kspValue ? 'border-red-500' : ''
+                  }`}
+                  step="1e-11"
+                  min="0"
+                />
+                {inputErrors.kspValue && (
+                  <p className="text-red-500 text-xs mt-1">{inputErrors.kspValue}</p>
+                )}
+              </label>
+            </div>
+          </div>
+          
+          <div className="bg-gray-100 p-4 rounded-md mb-6">
+            <h2 className="text-lg font-semibold mb-2">Titration Parameters:</h2>
+            <ul className="text-sm">
+              <li><strong>KCl solution:</strong> {chlorideConcentration.toFixed(3)} M, {chlorideVolume.toFixed(1)} mL</li>
+              <li><strong>AgNO₃ solution:</strong> {silverNitrateConcentration.toFixed(3)} M</li>
+              <li><strong>Ksp(AgCl):</strong> {kspValue.toExponential(2)}</li>
+              <li><strong>Equivalence point:</strong> {equivalencePoint.toFixed(2)} mL of AgNO₃</li>
+            </ul>
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              AgNO₃ Volume Added: {currentVolume.toFixed(2)} mL
+              <input
+                type="range"
+                min="0"
+                max={equivalencePoint * 2}
+                step={equivalencePoint / 100}
+                value={currentVolume}
+                onChange={(e) => setCurrentVolume(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              />
+            </label>
+            <div className="text-sm text-gray-600 mb-2">
+              {getTitrationState()}
+            </div>
+            
+            {/* Ion concentration information */}
+            {currentVolume > 0 && (
+              <div className="bg-blue-50 p-3 rounded-md text-sm">
+                <h3 className="font-medium mb-1">Ion Concentrations at Current Point:</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {Object.entries(calculateIonConcentrations(currentVolume)).map(([ion, concentration]) => (
+                    ion !== 'pAg' ? (
+                      <div key={ion} className="flex flex-col">
+                        <span className="font-medium">
+                          {ion === 'silver' ? '[Ag⁺]' : 
+                           ion === 'chloride' ? '[Cl⁻]' : 
+                           ion === 'potassium' ? '[K⁺]' : '[NO₃⁻]'}:
+                        </span>
+                        <span>{concentration.toExponential(4)} M</span>
+                      </div>
+                    ) : null
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <span className="font-medium">Charge Balance Ratio:</span>{" "}
+                  {(() => {
+                    const conc = calculateIonConcentrations(currentVolume);
+                    const positive = conc.silver + conc.potassium;
+                    const negative = conc.chloride + conc.nitrate;
+                    return (positive / negative).toFixed(6);
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={titrationData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="volume" 
+                  label={{ value: 'AgNO₃ Volume (mL)', position: 'bottom', offset: 0 }}
+                  domain={[0, equivalencePoint * 2]} 
+                />
+                <YAxis 
+                  label={{ value: 'pAg (-log[Ag⁺])', angle: -90, position: 'left' }}
+                  domain={[pAgRange.min, pAgRange.max]} 
+                />
+                <Tooltip 
+                  formatter={(value) => [`${value.toFixed(2)}`, 'pAg']}
+                  labelFormatter={(value) => `Volume: ${parseFloat(value).toFixed(2)} mL`}
+                />
+                <Legend />
+                <ReferenceLine x={equivalencePoint} stroke="red" label="Equivalence Point" />
+                <Line 
+                  type="monotone" 
+                  dataKey="pAg" 
+                  stroke="#2563eb" 
+                  dot={false} 
+                  strokeWidth={2}
+                />
+                {currentPoint && (
+                  <Line 
+                    data={[currentPoint]}
+                    type="monotone"
+                    dataKey="pAg"
+                    stroke="none"
+                    dot={{ stroke: '#ef4444', strokeWidth: 2, r: 6, fill: '#ffffff' }}
+                    isAnimationActive={false}
+                    name="Current Point"
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      );
+    };
+    
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<TitrationSimulator />);
+  </script>
+</body>
+</html>
