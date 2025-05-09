@@ -3,63 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KCl-AgNO₃ Titration Simulator</title>
-  
-  <!-- React and ReactDOM -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  
-  <!-- Babel for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Recharts for charting -->
-  <script src="https://unpkg.com/recharts@2.5.0/umd/Recharts.min.js"></script>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
+  <title>Silver Halide Titration Simulator</title>
   <style>
-    /* Additional custom styles */
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-      background-color: #f5f5f5;
       margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       padding: 20px;
     }
     
-    input[type="range"] {
-      -webkit-appearance: none;
-      height: 7px;
-      background: #e5e7eb;
-      border-radius: 5px;
-      margin: 10px 0;
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2563eb;
     }
     
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 18px;
-      height: 18px;
-      background: #3b82f6;
-      border-radius: 50%;
-      cursor: pointer;
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
     }
     
-    input[type="range"]::-moz-range-thumb {
-      width: 18px;
-      height: 18px;
-      background: #3b82f6;
-      border-radius: 50%;
-      cursor: pointer;
+    .input-group {
+      margin-bottom: 5px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      font-size: 14px;
     }
     
     input[type="number"] {
-      border: 1px solid #d1d5db;
-      border-radius: 0.375rem;
-      padding: 0.5rem;
       width: 100%;
-      font-size: 0.875rem;
-      line-height: 1.25rem;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      font-size: 14px;
     }
     
     input[type="number"]:focus {
@@ -68,397 +60,672 @@
       box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
     }
     
-    .shadow-md {
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      font-size: 14px;
+      background-color: white;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+    
+    .error {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 3px;
+    }
+    
+    .info-panel {
+      background-color: #f3f4f6;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    
+    .info-panel h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    
+    .info-panel ul {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 14px;
+    }
+    
+    .chart-container {
+      width: 100%;
+      height: 400px;
+      position: relative;
+      margin-top: 20px;
+      border: 1px solid #d1d5db;
+      border-radius: 5px;
+      cursor: crosshair;
+    }
+    
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .cursor-info {
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+      z-index: 10;
+    }
+    
+    .cursor-line-x, .cursor-line-y {
+      position: absolute;
+      background-color: rgba(239, 68, 68, 0.5);
+      pointer-events: none;
+      z-index: 5;
+    }
+    
+    .cursor-line-x {
+      height: 1px;
+      width: 100%;
+    }
+    
+    .cursor-line-y {
+      width: 1px;
+      height: 100%;
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  
-  <script type="text/babel">
-    // Destructure components from Recharts
-    const {
-      LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
-      ReferenceLine, ResponsiveContainer
-    } = Recharts;
+  <div class="container">
+    <h1>Silver Halide Titration Simulator</h1>
     
-    // Main titration simulator component
-    const TitrationSimulator = () => {
-      // State variables for user inputs
-      const [chlorideConcentration, setChlorideConcentration] = React.useState(0.1);
-      const [chlorideVolume, setChlorideVolume] = React.useState(50);
-      const [silverNitrateConcentration, setSilverNitrateConcentration] = React.useState(0.1);
-      const [kspValue, setKspValue] = React.useState(1.8e-10); // Default Ksp value for AgCl
-      
-      // State variable for current simulation volume (for animation/slider)
-      const [currentVolume, setCurrentVolume] = React.useState(0);
-    
-      // State variables for validation
-      const [inputErrors, setInputErrors] = React.useState({});
-    
-      // Calculate equivalence point
-      const equivalencePoint = React.useMemo(() => {
-        return (chlorideConcentration * chlorideVolume) / silverNitrateConcentration;
-      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration]);
-    
-      // Validate inputs and update errors
-      const validateInputs = () => {
-        const errors = {};
-        
-        if (chlorideConcentration <= 0) errors.chlorideConcentration = "Concentration must be positive";
-        if (chlorideVolume <= 0) errors.chlorideVolume = "Volume must be positive";
-        if (silverNitrateConcentration <= 0) errors.silverNitrateConcentration = "Concentration must be positive";
-        if (kspValue <= 0) errors.kspValue = "Ksp must be positive";
-        
-        setInputErrors(errors);
-        return Object.keys(errors).length === 0;
-      };
-    
-      // Handle input changes
-      const handleChange = (setter) => (e) => {
-        const value = parseFloat(e.target.value);
-        if (!isNaN(value)) {
-          setter(value);
-        }
-      };
-    
-      // Effect to validate inputs when they change
-      React.useEffect(() => {
-        validateInputs();
-        // Reset current volume when inputs change
-        setCurrentVolume(0);
-      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration, kspValue]);
-    
-      // Function to calculate pAg using charge balance method
-      const calculatePAg = (volumeAdded) => {
-        // Skip calculation for exactly 0 volume to avoid issues
-        if (volumeAdded <= 0) return 10; // Return a high pAg value for 0 volume
-        
-        // Step 1: Calculate total volume
-        const totalVolume = chlorideVolume + volumeAdded; // in mL
-        
-        // Step 2: Calculate potassium concentration
-        const potassiumConcentration = (chlorideConcentration * chlorideVolume) / totalVolume;
-        
-        // Step 3: Calculate nitrate concentration
-        const nitrateConcentration = (silverNitrateConcentration * volumeAdded) / totalVolume;
-        
-        // Steps 4-8: Iteratively find pAg value that gives a charge balance ratio of 1
-        // We'll use a binary search algorithm to find the pAg
-        let minPAg = 0;   // Corresponds to [Ag+] = 1 M (very high)
-        let maxPAg = 15;  // Corresponds to [Ag+] = 10^-15 M (very low)
-        let currentPAg;
-        let iterations = 0;
-        const maxIterations = 50;
-        const tolerance = 1e-6;
-        
-        // Binary search loop
-        while ((maxPAg - minPAg) > tolerance && iterations < maxIterations) {
-          currentPAg = (minPAg + maxPAg) / 2;
-          
-          // Step 5: Calculate silver concentration from pAg
-          const silverConcentration = Math.pow(10, -currentPAg);
-          
-          // Step 6: Calculate chloride concentration from Ksp
-          const chlorideConcentration = kspValue / silverConcentration;
-          
-          // Step 7: Calculate the charge balance ratio
-          const positiveCharges = silverConcentration + potassiumConcentration;
-          const negativeCharges = nitrateConcentration + chlorideConcentration;
-          const ratio = positiveCharges / negativeCharges;
-          
-          // Step 8: Adjust pAg based on ratio
-          if (ratio > 1) {
-            // Too many positive charges, need higher pAg (lower [Ag+])
-            minPAg = currentPAg;
-          } else {
-            // Too many negative charges, need lower pAg (higher [Ag+])
-            maxPAg = currentPAg;
-          }
-          
-          iterations++;
-        }
-        
-        return currentPAg;
-      };
-    
-      // Calculate ion concentrations at the current volume
-      const calculateIonConcentrations = (volumeAdded) => {
-        if (volumeAdded <= 0) return { silver: 0, chloride: chlorideConcentration, potassium: chlorideConcentration, nitrate: 0 };
-        
-        // Calculate total volume
-        const totalVolume = chlorideVolume + volumeAdded; // in mL
-        
-        // Calculate potassium concentration
-        const potassiumConcentration = (chlorideConcentration * chlorideVolume) / totalVolume;
-        
-        // Calculate nitrate concentration
-        const nitrateConcentration = (silverNitrateConcentration * volumeAdded) / totalVolume;
-        
-        // Get pAg value
-        const pAg = calculatePAg(volumeAdded);
-        
-        // Calculate [Ag+] from pAg
-        const silverConcentration = Math.pow(10, -pAg);
-        
-        // Calculate [Cl-] from Ksp
-        const chlorideConcentration = kspValue / silverConcentration;
-        
-        return {
-          silver: silverConcentration,
-          chloride: chlorideConcentration,
-          potassium: potassiumConcentration,
-          nitrate: nitrateConcentration,
-          pAg: pAg
-        };
-      };
-    
-      // Description of the current state of the titration
-      const getTitrationState = () => {
-        if (currentVolume === 0) return "Initial state";
-        
-        // Get ion concentrations at current volume
-        const ionConc = calculateIonConcentrations(currentVolume);
-        
-        if (Math.abs(currentVolume - equivalencePoint) < equivalencePoint * 0.02) {
-          return `At equivalence point: [Ag⁺][Cl⁻] = Ksp = ${kspValue.toExponential(2)}`;
-        }
-        
-        if (currentVolume < equivalencePoint) {
-          return `Before equivalence point: excess Cl⁻ ions (${ionConc.chloride.toExponential(3)} M)`;
-        }
-        
-        return `After equivalence point: excess Ag⁺ ions (${ionConc.silver.toExponential(3)} M)`;
-      };
-    
-      // Generate titration curve data
-      const titrationData = React.useMemo(() => {
-        if (!validateInputs()) return [];
-        
-        const numberOfPoints = 200;
-        const maxVolume = 2 * equivalencePoint;
-        const volumeStep = maxVolume / (numberOfPoints - 1);
-        
-        // Create data points
-        return Array.from({ length: numberOfPoints }, (_, i) => {
-          // Start at a small volume instead of exactly 0 to avoid division by zero issues
-          const volume = i === 0 ? equivalencePoint * 0.001 : i * volumeStep;
-          const pAg = calculatePAg(volume);
-          
-          return { volume, pAg };
-        });
-      }, [chlorideConcentration, chlorideVolume, silverNitrateConcentration, kspValue, equivalencePoint]);
-    
-      // Find min and max pAg for axis scaling
-      const pAgRange = React.useMemo(() => {
-        if (titrationData.length === 0) return { min: 0, max: 10 };
-        
-        const pAgValues = titrationData.map(point => point.pAg);
-        return { 
-          min: Math.floor(Math.min(...pAgValues)),
-          max: Math.ceil(Math.max(...pAgValues))
-        };
-      }, [titrationData]);
-    
-      // Generate current point data for indicator
-      const currentPoint = React.useMemo(() => {
-        if (currentVolume <= 0 || !validateInputs()) return null;
-        
-        const pAg = calculatePAg(currentVolume);
-        return { volume: currentVolume, pAg };
-      }, [currentVolume, validateInputs]);
-    
-      return (
-        <div className="p-6 max-w-4xl mx-auto bg-white rounded-xl shadow-md">
-          <h1 className="text-2xl font-bold text-center mb-6">KCl-AgNO₃ Titration Simulator</h1>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Chloride Concentration (M)
-                <input
-                  type="number"
-                  value={chlorideConcentration}
-                  onChange={handleChange(setChlorideConcentration)}
-                  className={`mt-1 block w-full rounded-md ${
-                    inputErrors.chlorideConcentration ? 'border-red-500' : ''
-                  }`}
-                  step="0.01"
-                  min="0"
-                />
-                {inputErrors.chlorideConcentration && (
-                  <p className="text-red-500 text-xs mt-1">{inputErrors.chlorideConcentration}</p>
-                )}
-              </label>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Chloride Volume (mL)
-                <input
-                  type="number"
-                  value={chlorideVolume}
-                  onChange={handleChange(setChlorideVolume)}
-                  className={`mt-1 block w-full rounded-md ${
-                    inputErrors.chlorideVolume ? 'border-red-500' : ''
-                  }`}
-                  step="1"
-                  min="0"
-                />
-                {inputErrors.chlorideVolume && (
-                  <p className="text-red-500 text-xs mt-1">{inputErrors.chlorideVolume}</p>
-                )}
-              </label>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Silver Nitrate Concentration (M)
-                <input
-                  type="number"
-                  value={silverNitrateConcentration}
-                  onChange={handleChange(setSilverNitrateConcentration)}
-                  className={`mt-1 block w-full rounded-md ${
-                    inputErrors.silverNitrateConcentration ? 'border-red-500' : ''
-                  }`}
-                  step="0.01"
-                  min="0"
-                />
-                {inputErrors.silverNitrateConcentration && (
-                  <p className="text-red-500 text-xs mt-1">{inputErrors.silverNitrateConcentration}</p>
-                )}
-              </label>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Ksp Value for AgCl
-                <input
-                  type="number"
-                  value={kspValue}
-                  onChange={handleChange(setKspValue)}
-                  className={`mt-1 block w-full rounded-md ${
-                    inputErrors.kspValue ? 'border-red-500' : ''
-                  }`}
-                  step="1e-11"
-                  min="0"
-                />
-                {inputErrors.kspValue && (
-                  <p className="text-red-500 text-xs mt-1">{inputErrors.kspValue}</p>
-                )}
-              </label>
-            </div>
-          </div>
-          
-          <div className="bg-gray-100 p-4 rounded-md mb-6">
-            <h2 className="text-lg font-semibold mb-2">Titration Parameters:</h2>
-            <ul className="text-sm">
-              <li><strong>KCl solution:</strong> {chlorideConcentration.toFixed(3)} M, {chlorideVolume.toFixed(1)} mL</li>
-              <li><strong>AgNO₃ solution:</strong> {silverNitrateConcentration.toFixed(3)} M</li>
-              <li><strong>Ksp(AgCl):</strong> {kspValue.toExponential(2)}</li>
-              <li><strong>Equivalence point:</strong> {equivalencePoint.toFixed(2)} mL of AgNO₃</li>
-            </ul>
-          </div>
-          
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              AgNO₃ Volume Added: {currentVolume.toFixed(2)} mL
-              <input
-                type="range"
-                min="0"
-                max={equivalencePoint * 2}
-                step={equivalencePoint / 100}
-                value={currentVolume}
-                onChange={(e) => setCurrentVolume(parseFloat(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
-            </label>
-            <div className="text-sm text-gray-600 mb-2">
-              {getTitrationState()}
-            </div>
-            
-            {/* Ion concentration information */}
-            {currentVolume > 0 && (
-              <div className="bg-blue-50 p-3 rounded-md text-sm">
-                <h3 className="font-medium mb-1">Ion Concentrations at Current Point:</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {Object.entries(calculateIonConcentrations(currentVolume)).map(([ion, concentration]) => (
-                    ion !== 'pAg' ? (
-                      <div key={ion} className="flex flex-col">
-                        <span className="font-medium">
-                          {ion === 'silver' ? '[Ag⁺]' : 
-                           ion === 'chloride' ? '[Cl⁻]' : 
-                           ion === 'potassium' ? '[K⁺]' : '[NO₃⁻]'}:
-                        </span>
-                        <span>{concentration.toExponential(4)} M</span>
-                      </div>
-                    ) : null
-                  ))}
-                </div>
-                <div className="mt-2">
-                  <span className="font-medium">Charge Balance Ratio:</span>{" "}
-                  {(() => {
-                    const conc = calculateIonConcentrations(currentVolume);
-                    const positive = conc.silver + conc.potassium;
-                    const negative = conc.chloride + conc.nitrate;
-                    return (positive / negative).toFixed(6);
-                  })()}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={titrationData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="volume" 
-                  label={{ value: 'AgNO₃ Volume (mL)', position: 'bottom', offset: 0 }}
-                  domain={[0, equivalencePoint * 2]} 
-                />
-                <YAxis 
-                  label={{ value: 'pAg (-log[Ag⁺])', angle: -90, position: 'left' }}
-                  domain={[pAgRange.min, pAgRange.max]} 
-                />
-                <Tooltip 
-                  formatter={(value) => [`${value.toFixed(2)}`, 'pAg']}
-                  labelFormatter={(value) => `Volume: ${parseFloat(value).toFixed(2)} mL`}
-                />
-                <Legend />
-                <ReferenceLine x={equivalencePoint} stroke="red" label="Equivalence Point" />
-                <Line 
-                  type="monotone" 
-                  dataKey="pAg" 
-                  stroke="#2563eb" 
-                  dot={false} 
-                  strokeWidth={2}
-                />
-                {currentPoint && (
-                  <Line 
-                    data={[currentPoint]}
-                    type="monotone"
-                    dataKey="pAg"
-                    stroke="none"
-                    dot={{ stroke: '#ef4444', strokeWidth: 2, r: 6, fill: '#ffffff' }}
-                    isAnimationActive={false}
-                    name="Current Point"
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+    <div class="input-grid">
+      <div class="input-group" style="position: relative;">
+        <label for="halide-type">Halide Ion</label>
+        <select id="halide-type">
+          <option value="Cl">Chloride (Cl⁻)</option>
+          <option value="Br">Bromide (Br⁻)</option>
+          <option value="I">Iodide (I⁻)</option>
+          <option value="custom">Custom (X⁻)</option>
+        </select>
+        <div id="pksp-input-container" style="display: none; position: absolute; width: 100%; margin-top: 5px;">
+          <label for="pksp-value">pKsp Value:</label>
+          <input 
+            type="number" 
+            id="pksp-value" 
+            value="10" 
+            step="0.1" 
+            min="0"
+          >
+          <div class="error" id="error-pksp-value"></div>
         </div>
-      );
+      </div>
+      
+      <div class="input-group">
+        <label for="halide-concentration">Halide Concentration (M)</label>
+        <input 
+          type="number" 
+          id="halide-concentration" 
+          value="0.1" 
+          step="0.01" 
+          min="0"
+        >
+        <div class="error" id="error-halide-concentration"></div>
+      </div>
+      
+      <div class="input-group">
+        <label for="halide-volume">Halide Volume (mL)</label>
+        <input 
+          type="number" 
+          id="halide-volume" 
+          value="50" 
+          step="1" 
+          min="0"
+        >
+        <div class="error" id="error-halide-volume"></div>
+      </div>
+      
+      <div class="input-group">
+        <label for="silver-concentration">Silver Nitrate Concentration (M)</label>
+        <input 
+          type="number" 
+          id="silver-concentration" 
+          value="0.1" 
+          step="0.01" 
+          min="0"
+        >
+        <div class="error" id="error-silver-concentration"></div>
+      </div>
+    </div>
+    
+    <div class="info-panel">
+      <h2>Titration Parameters:</h2>
+      <ul>
+        <li><strong>Analyte:</strong> <span id="summary-halide-type">Chloride (Cl⁻)</span>, <span id="summary-halide-concentration">0.100</span> M, <span id="summary-halide-volume">50.0</span> mL</li>
+        <li><strong>Titrant:</strong> AgNO₃, <span id="summary-silver-concentration">0.100</span> M</li>
+        <li><strong>pKsp(AgX):</strong> <span id="summary-pksp-value">9.74</span></li>
+        <li><strong>Equivalence point:</strong> <span id="summary-equivalence-point">50.00</span> mL of AgNO₃</li>
+      </ul>
+    </div>
+    
+    <div class="chart-container" id="chart-container">
+      <canvas id="titration-chart"></canvas>
+      <div class="cursor-info" id="cursor-info"></div>
+      <div class="cursor-line-x" id="cursor-line-x"></div>
+      <div class="cursor-line-y" id="cursor-line-y"></div>
+    </div>
+  </div>
+
+  <script>
+    // ----- Variables and DOM elements -----
+    let halideType = 'Cl';             // Cl, Br, I, or custom
+    let halideConcentration = 0.1;     // M
+    let halideVolume = 50;             // mL
+    let silverConcentration = 0.1;     // M
+    let pkspValue = 9.74;              // pKsp for AgCl by default
+    let kspValue = 1.8e-10;            // Ksp calculated from pKsp
+    let equivalencePoint = 50;         // mL, calculated
+    let titrationData = [];            // Array of {volume, pAg} points
+    
+    // Chart dimensions and scaling variables for coordinate mapping
+    let chartWidth, chartHeight, plotWidth, plotHeight;
+    let margin = { top: 30, right: 30, bottom: 50, left: 60 };
+    let xScale, yScale, xScaleInverse, yScaleInverse;
+    let minPAg, maxPAg;
+    
+    // pKsp values for silver halides (-log Ksp)
+    const pkspValues = {
+      'Cl': 9.74,    // -log(1.8e-10)
+      'Br': 12.30,   // -log(5.0e-13)
+      'I': 16.08     // -log(8.3e-17)
     };
     
-    // Render the app
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<TitrationSimulator />);
+    // Full names for display
+    const halideNames = {
+      'Cl': 'Chloride (Cl⁻)',
+      'Br': 'Bromide (Br⁻)',
+      'I': 'Iodide (I⁻)',
+      'custom': 'Custom (X⁻)'
+    };
+    
+    // Salt formulas for display
+    const saltFormulas = {
+      'Cl': 'AgCl',
+      'Br': 'AgBr',
+      'I': 'AgI',
+      'custom': 'AgX'
+    };
+    
+    // Input elements
+    const selectHalideType = document.getElementById('halide-type');
+    const pkspInputContainer = document.getElementById('pksp-input-container');
+    const inputPksp = document.getElementById('pksp-value');
+    const inputHalideConc = document.getElementById('halide-concentration');
+    const inputHalideVol = document.getElementById('halide-volume');
+    const inputSilverConc = document.getElementById('silver-concentration');
+    
+    // Summary elements
+    const summaryHalideType = document.getElementById('summary-halide-type');
+    const summaryHalideConc = document.getElementById('summary-halide-concentration');
+    const summaryHalideVol = document.getElementById('summary-halide-volume');
+    const summarySilverConc = document.getElementById('summary-silver-concentration');
+    const summaryPksp = document.getElementById('summary-pksp-value');
+    const summaryEquivalencePoint = document.getElementById('summary-equivalence-point');
+    
+    // Error elements
+    const errorPksp = document.getElementById('error-pksp-value');
+    const errorHalideConc = document.getElementById('error-halide-concentration');
+    const errorHalideVol = document.getElementById('error-halide-volume');
+    const errorSilverConc = document.getElementById('error-silver-concentration');
+    
+    // Chart elements
+    const chartContainer = document.getElementById('chart-container');
+    const canvas = document.getElementById('titration-chart');
+    const ctx = canvas.getContext('2d');
+    const cursorInfo = document.getElementById('cursor-info');
+    const cursorLineX = document.getElementById('cursor-line-x');
+    const cursorLineY = document.getElementById('cursor-line-y');
+    
+    // ----- Input validation and handling -----
+    function validateInputs() {
+      let isValid = true;
+      
+      // Clear previous errors
+      errorPksp.textContent = '';
+      errorHalideConc.textContent = '';
+      errorHalideVol.textContent = '';
+      errorSilverConc.textContent = '';
+      
+      // Validate pKsp if custom halide
+      if (halideType === 'custom') {
+        if (pkspValue <= 0) {
+          errorPksp.textContent = 'pKsp must be positive';
+          isValid = false;
+        }
+      }
+      
+      // Validate halide concentration
+      if (halideConcentration <= 0) {
+        errorHalideConc.textContent = 'Concentration must be positive';
+        isValid = false;
+      }
+      
+      // Validate halide volume
+      if (halideVolume <= 0) {
+        errorHalideVol.textContent = 'Volume must be positive';
+        isValid = false;
+      }
+      
+      // Validate silver nitrate concentration
+      if (silverConcentration <= 0) {
+        errorSilverConc.textContent = 'Concentration must be positive';
+        isValid = false;
+      }
+      
+      return isValid;
+    }
+    
+    // Update parameters when inputs change
+    function updateParameters() {
+      // Get values from inputs
+      halideType = selectHalideType.value;
+      halideConcentration = parseFloat(inputHalideConc.value) || 0;
+      halideVolume = parseFloat(inputHalideVol.value) || 0;
+      silverConcentration = parseFloat(inputSilverConc.value) || 0;
+      
+      // Show or hide pKsp input based on halide type
+      if (halideType === 'custom') {
+        pkspInputContainer.style.display = 'block';
+        pkspValue = parseFloat(inputPksp.value) || 0;
+      } else {
+        pkspInputContainer.style.display = 'none';
+        pkspValue = pkspValues[halideType];
+      }
+      
+      // Calculate Ksp from pKsp
+      kspValue = Math.pow(10, -pkspValue);
+      
+      // Validate inputs
+      const isValid = validateInputs();
+      
+      if (isValid) {
+        // Calculate equivalence point
+        equivalencePoint = (halideConcentration * halideVolume) / silverConcentration;
+        
+        // Update summary display
+        summaryHalideType.textContent = halideNames[halideType];
+        summaryHalideConc.textContent = halideConcentration.toFixed(3);
+        summaryHalideVol.textContent = halideVolume.toFixed(1);
+        summarySilverConc.textContent = silverConcentration.toFixed(3);
+        summaryPksp.textContent = pkspValue.toFixed(2);
+        summaryEquivalencePoint.textContent = equivalencePoint.toFixed(2);
+        
+        // Generate titration curve data
+        generateTitrationData();
+        
+        // Draw the chart
+        drawChart();
+      }
+    }
+    
+    // ----- Titration calculations -----
+    // Function to calculate pAg using charge balance method
+    function calculatePAg(volumeAdded) {
+      // Skip calculation for exactly 0 volume to avoid issues
+      if (volumeAdded <= 0) return 15; // Return a high pAg value for 0 volume
+      
+      // Step 1: Calculate total volume
+      const totalVolume = halideVolume + volumeAdded; // in mL
+      
+      // Step 2: Calculate cation concentration (counter-ion for halide)
+      const counterCationConcentration = (halideConcentration * halideVolume) / totalVolume;
+      
+      // Step 3: Calculate nitrate concentration
+      const nitrateConcentration = (silverConcentration * volumeAdded) / totalVolume;
+      
+      // Steps 4-8: Iteratively find pAg value that gives a charge balance ratio of 1
+      // We'll use a binary search algorithm to find the pAg
+      let minPAg = 0;   // Corresponds to [Ag+] = 1 M (very high)
+      let maxPAg = 20;  // Corresponds to [Ag+] = 10^-20 M (very low)
+      let currentPAg;
+      let iterations = 0;
+      const maxIterations = 50;
+      const tolerance = 1e-6;
+      
+      // Binary search loop
+      while ((maxPAg - minPAg) > tolerance && iterations < maxIterations) {
+        currentPAg = (minPAg + maxPAg) / 2;
+        
+        // Step 5: Calculate silver concentration from pAg
+        const silverConcentration = Math.pow(10, -currentPAg);
+        
+        // Step 6: Calculate halide concentration from Ksp
+        const halideConcentration = kspValue / silverConcentration;
+        
+        // Step 7: Calculate the charge balance ratio
+        const positiveCharges = silverConcentration + counterCationConcentration;
+        const negativeCharges = nitrateConcentration + halideConcentration;
+        const ratio = positiveCharges / negativeCharges;
+        
+        // Step 8: Adjust pAg based on ratio
+        if (ratio > 1) {
+          // Too many positive charges, need higher pAg (lower [Ag+])
+          minPAg = currentPAg;
+        } else {
+          // Too many negative charges, need lower pAg (higher [Ag+])
+          maxPAg = currentPAg;
+        }
+        
+        iterations++;
+      }
+      
+      return currentPAg;
+    }
+    
+    // Generate titration curve data points
+    function generateTitrationData() {
+      if (!validateInputs()) return;
+      
+      const numberOfPoints = 200;
+      const maxVolume = 2 * equivalencePoint;
+      const volumeStep = maxVolume / (numberOfPoints - 1);
+      
+      titrationData = [];
+      
+      // Create data points
+      for (let i = 0; i < numberOfPoints; i++) {
+        // Start at a small volume instead of exactly 0 to avoid division by zero issues
+        const volume = i === 0 ? equivalencePoint * 0.001 : i * volumeStep;
+        const pAg = calculatePAg(volume);
+        
+        titrationData.push({ volume, pAg });
+      }
+    }
+    
+    // ----- Chart drawing functions -----
+    function drawChart() {
+      if (!validateInputs() || titrationData.length === 0) return;
+      
+      // Get canvas dimensions
+      chartWidth = canvas.clientWidth;
+      chartHeight = canvas.clientHeight;
+      
+      // Set canvas resolution for high DPI displays
+      canvas.width = chartWidth * window.devicePixelRatio;
+      canvas.height = chartHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, chartWidth, chartHeight);
+      
+      // Find min and max pAg for scaling
+      minPAg = Number.MAX_VALUE;
+      maxPAg = Number.MIN_VALUE;
+      
+      for (const point of titrationData) {
+        if (point.pAg < minPAg) minPAg = point.pAg;
+        if (point.pAg > maxPAg) maxPAg = point.pAg;
+      }
+      
+      // Add some padding to the scales
+      minPAg = Math.floor(minPAg);
+      maxPAg = Math.ceil(maxPAg);
+      
+      // Calculate plot area dimensions
+      plotWidth = chartWidth - margin.left - margin.right;
+      plotHeight = chartHeight - margin.top - margin.bottom;
+      
+      // Create scale functions
+      xScale = (volume) => margin.left + (volume / (equivalencePoint * 2)) * plotWidth;
+      yScale = (pAg) => margin.top + plotHeight - ((pAg - minPAg) / (maxPAg - minPAg)) * plotHeight;
+      
+      // Create inverse scale functions for cursor position
+      xScaleInverse = (x) => ((x - margin.left) / plotWidth) * (equivalencePoint * 2);
+      yScaleInverse = (y) => maxPAg - ((y - margin.top) / plotHeight) * (maxPAg - minPAg);
+      
+      // Draw axes
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      
+      // X-axis
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top + plotHeight);
+      ctx.lineTo(margin.left + plotWidth, margin.top + plotHeight);
+      ctx.stroke();
+      
+      // Y-axis
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + plotHeight);
+      ctx.stroke();
+      
+      // Draw grid lines
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      
+      // X-axis grid
+      const xStep = equivalencePoint / 2;
+      for (let vol = 0; vol <= equivalencePoint * 2; vol += xStep) {
+        const x = xScale(vol);
+        
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top);
+        ctx.lineTo(x, margin.top + plotHeight);
+        ctx.stroke();
+        
+        // X-axis labels
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(vol.toFixed(1), x, margin.top + plotHeight + 10);
+      }
+      
+      // Y-axis grid - calculate appropriate step based on range
+      const pAgRange = maxPAg - minPAg;
+      let pAgStep = 1;
+      
+      if (pAgRange > 15) {
+        pAgStep = Math.ceil(pAgRange / 10);
+      } else if (pAgRange > 10) {
+        pAgStep = 2;
+      } else if (pAgRange > 5) {
+        pAgStep = 1;
+      } else {
+        pAgStep = 0.5;
+      }
+      
+      for (let pAg = minPAg; pAg <= maxPAg; pAg += pAgStep) {
+        const y = yScale(pAg);
+        
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + plotWidth, y);
+        ctx.stroke();
+        
+        // Y-axis labels
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(pAg.toFixed(1), margin.left - 10, y);
+      }
+      
+      // Draw axis labels
+      ctx.fillStyle = '#000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '14px sans-serif';
+      
+      // X-axis label
+      ctx.fillText('AgNO₃ Volume (mL)', margin.left + plotWidth / 2, chartHeight - 15);
+      
+      // Y-axis label (rotated)
+      ctx.save();
+      ctx.translate(15, margin.top + plotHeight / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('pAg (-log[Ag⁺])', 0, 0);
+      ctx.restore();
+      
+      // Draw titration curve
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      
+      let firstPoint = true;
+      
+      for (const point of titrationData) {
+        const x = xScale(point.volume);
+        const y = yScale(point.pAg);
+        
+        if (firstPoint) {
+          ctx.moveTo(x, y);
+          firstPoint = false;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      
+      ctx.stroke();
+      
+      // Add title with halide type
+      ctx.fillStyle = '#2563eb';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText(`Titration of ${halideNames[halideType]} with AgNO₃`, chartWidth / 2, 15);
+    }
+    
+    // Get pAg value at a specific volume by interpolating between data points
+    function interpolatePAg(volume) {
+      // Find the two data points that bracket the volume
+      let lowerPoint = null;
+      let upperPoint = null;
+      
+      for (let i = 0; i < titrationData.length - 1; i++) {
+        if (titrationData[i].volume <= volume && volume <= titrationData[i + 1].volume) {
+          lowerPoint = titrationData[i];
+          upperPoint = titrationData[i + 1];
+          break;
+        }
+      }
+      
+      // If not found, return null (out of range)
+      if (!lowerPoint || !upperPoint) return null;
+      
+      // Perform linear interpolation
+      const ratio = (volume - lowerPoint.volume) / (upperPoint.volume - lowerPoint.volume);
+      return lowerPoint.pAg + ratio * (upperPoint.pAg - lowerPoint.pAg);
+    }
+    
+    // Handle mouse movement on the chart
+    function handleMouseMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      
+      // Check if mouse is within the plotting area
+      if (
+        mouseX >= margin.left && 
+        mouseX <= chartWidth - margin.right &&
+        mouseY >= margin.top && 
+        mouseY <= chartHeight - margin.bottom
+      ) {
+        // Show cursor info
+        cursorInfo.style.display = 'block';
+        cursorLineX.style.display = 'block';
+        cursorLineY.style.display = 'block';
+        
+        // Get data values from mouse position
+        const volume = xScaleInverse(mouseX);
+        const pAg = yScaleInverse(mouseY);
+        
+        // Position cursor lines
+        cursorLineX.style.top = `${mouseY}px`;
+        cursorLineX.style.left = `${margin.left}px`;
+        cursorLineX.style.width = `${plotWidth}px`;
+        
+        cursorLineY.style.top = `${margin.top}px`;
+        cursorLineY.style.left = `${mouseX}px`;
+        cursorLineY.style.height = `${plotHeight}px`;
+        
+        // Update cursor info text
+        cursorInfo.textContent = `Volume: ${volume.toFixed(2)} mL, pAg: ${pAg.toFixed(2)}`;
+        
+        // Position cursor info
+        let infoX = mouseX + 15;
+        let infoY = mouseY - 25;
+        
+        // Adjust if near the edges
+        if (infoX + cursorInfo.offsetWidth > chartWidth - 10) {
+          infoX = mouseX - cursorInfo.offsetWidth - 10;
+        }
+        
+        if (infoY < 5) {
+          infoY = 5;
+        }
+        
+        cursorInfo.style.left = `${infoX}px`;
+        cursorInfo.style.top = `${infoY}px`;
+      } else {
+        // Hide cursor info
+        cursorInfo.style.display = 'none';
+        cursorLineX.style.display = 'none';
+        cursorLineY.style.display = 'none';
+      }
+    }
+    
+    // Hide cursor info when mouse leaves the chart
+    function handleMouseLeave() {
+      cursorInfo.style.display = 'none';
+      cursorLineX.style.display = 'none';
+      cursorLineY.style.display = 'none';
+    }
+    
+    // ----- Event listeners -----
+    // Update parameters when halide type changes
+    selectHalideType.addEventListener('change', function() {
+      // If custom is selected, show the pKsp input
+      if (this.value === 'custom') {
+        pkspInputContainer.style.display = 'block';
+      } else {
+        pkspInputContainer.style.display = 'none';
+      }
+      
+      updateParameters();
+    });
+    
+    // Update parameters when inputs change
+    inputPksp.addEventListener('input', updateParameters);
+    inputHalideConc.addEventListener('input', updateParameters);
+    inputHalideVol.addEventListener('input', updateParameters);
+    inputSilverConc.addEventListener('input', updateParameters);
+    
+    // Handle mouse interaction with the chart
+    chartContainer.addEventListener('mousemove', handleMouseMove);
+    chartContainer.addEventListener('mouseleave', handleMouseLeave);
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      drawChart();
+      // Hide cursor elements during resize to prevent positioning issues
+      cursorInfo.style.display = 'none';
+      cursorLineX.style.display = 'none';
+      cursorLineY.style.display = 'none';
+    });
+    
+    // ----- Initialization -----
+    // Initialize the simulator
+    updateParameters();
   </script>
 </body>
 </html>
