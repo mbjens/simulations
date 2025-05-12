@@ -167,7 +167,7 @@
                 
                 const label = document.createElement('label');
                 label.setAttribute('for', `pka${i}`);
-                label.textContent = `pKa�${i}:`;
+                label.textContent = `pKa${i}:`;
                 
                 const input = document.createElement('input');
                 input.type = 'number';
@@ -432,7 +432,7 @@
                         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                         ctx.font = '12px Arial';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`pKa₍${index+1}₎: ${pKa}`, xPos, chartArea.top - 10);
+                        ctx.fillText(`pKa${index+1}: ${pKa}`, xPos, chartArea.top - 10);
                     }
                 });
                 
