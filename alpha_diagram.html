@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acid/Base Fractional Composition Diagram</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-field {
+            flex: 1;
+            min-width: 200px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+        .explanation {
+            margin-top: 30px;
+            font-size: 0.95em;
+            line-height: 1.5;
+            color: #444;
+        }
+        .species-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .species-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .color-box {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+        @media (max-width: 768px) {
+            .input-field {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Acid/Base Fractional Composition Diagram</h1>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <div class="input-field">
+                    <label for="acid-type">Acid Type:</label>
+                    <select id="acid-type" onchange="updateInputFields()">
+                        <option value="1">Monoprotic (HA)</option>
+                        <option value="2">Diprotic (H₂A)</option>
+                        <option value="3">Triprotic (H₃A)</option>
+                    </select>
+                </div>
+                
+                <div class="input-field">
+                    <label for="ph-range-min">pH Range (Min):</label>
+                    <input type="number" id="ph-range-min" value="0" step="0.5" min="0" max="14">
+                </div>
+                
+                <div class="input-field">
+                    <label for="ph-range-max">pH Range (Max):</label>
+                    <input type="number" id="ph-range-max" value="14" step="0.5" min="0" max="14">
+                </div>
+            </div>
+            
+            <div id="pka-inputs" class="input-group">
+                <div class="input-field">
+                    <label for="pka1">pKa₁:</label>
+                    <input type="number" id="pka1" value="4.7" step="0.1" min="0" max="14">
+                </div>
+            </div>
+            
+            <button onclick="generateDiagram()">Generate Diagram</button>
+        </div>
+        
+
+        <div id="species-legend" class="species-info"></div>
+        
+        <div class="chart-container">
+            <canvas id="diagramChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let diagramChart = null;
+        
+        // Initialize the page
+        function init() {
+            updateInputFields();
+        }
+
+        // Update input fields based on acid type selection
+        function updateInputFields() {
+            const acidType = parseInt(document.getElementById('acid-type').value);
+            const pkaInputsDiv = document.getElementById('pka-inputs');
+            
+            // Clear existing inputs
+            pkaInputsDiv.innerHTML = '';
+            
+            // Add appropriate number of pKa inputs
+            for (let i = 1; i <= acidType; i++) {
+                const inputField = document.createElement('div');
+                inputField.className = 'input-field';
+                
+                const label = document.createElement('label');
+                label.setAttribute('for', `pka${i}`);
+                label.textContent = `pKa�${i}:`;
+                
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `pka${i}`;
+                input.value = i === 1 ? '4.7' : i === 2 ? '6.4' : '8.0';
+                input.step = '0.1';
+                input.min = '0';
+                input.max = '14';
+                
+                inputField.appendChild(label);
+                inputField.appendChild(input);
+                pkaInputsDiv.appendChild(inputField);
+            }
+        }
+        
+        // Apply preset values
+        function applyPreset() {
+            const preset = document.getElementById('presets').value;
+            
+            if (preset === "") return;
+            
+            const presetValues = {
+                'acetic': { type: 1, pKas: [4.76], range: [2, 8] },
+                'carbonic': { type: 2, pKas: [6.35, 10.33], range: [4, 12] },
+                'phosphoric': { type: 3, pKas: [2.15, 7.20, 12.35], range: [0, 14] },
+                'citric': { type: 3, pKas: [3.13, 4.76, 6.40], range: [1, 9] },
+                'glycine': { type: 2, pKas: [2.34, 9.60], range: [0, 12] }
+            };
+            
+            const selection = presetValues[preset];
+            document.getElementById('acid-type').value = selection.type;
+            updateInputFields();
+            
+            // Set pKa values
+            for (let i = 0; i < selection.pKas.length; i++) {
+                document.getElementById(`pka${i+1}`).value = selection.pKas[i];
+            }
+            
+            // Set pH range
+            document.getElementById('ph-range-min').value = selection.range[0];
+            document.getElementById('ph-range-max').value = selection.range[1];
+            
+            // Generate diagram
+            generateDiagram();
+        }
+        
+        // Calculate alpha values for given pH and pKas
+        function calculateAlphaValues(pH, pKas) {
+            const n = pKas.length;
+            const alphas = new Array(n + 1).fill(0);
+            
+            // Convert pKa to Ka
+            const Kas = pKas.map(pKa => Math.pow(10, -pKa));
+            
+            // Calculate concentrations for each species
+            const H = Math.pow(10, -pH);
+            
+            // Calculate denominator term
+            let denominator = 1;
+            let term = 1;
+            
+            for (let i = 0; i < n; i++) {
+                term *= Kas[i] / H;
+                denominator += term;
+            }
+            
+            // Calculate alpha values
+            // First species: H_nA
+            alphas[0] = 1 / denominator;
+            
+            // Intermediate species: H_(n-i)A^i-
+            term = 1;
+            for (let i = 1; i < n; i++) {
+                term *= Kas[i-1] / H;
+                alphas[i] = term / denominator;
+            }
+            
+            // Final species: A^n-
+            term *= Kas[n-1] / H;
+            alphas[n] = term / denominator;
+            
+            return alphas;
+        }
+        
+        // Generate the diagram
+        function generateDiagram() {
+            const acidType = parseInt(document.getElementById('acid-type').value);
+            const pHMin = parseFloat(document.getElementById('ph-range-min').value);
+            const pHMax = parseFloat(document.getElementById('ph-range-max').value);
+            
+            // Validate inputs
+            if (pHMin >= pHMax) {
+                alert("pH max must be greater than pH min");
+                return;
+            }
+            
+            // Collect pKa values
+            const pKas = [];
+            for (let i = 1; i <= acidType; i++) {
+                const pKa = parseFloat(document.getElementById(`pka${i}`).value);
+                if (isNaN(pKa)) {
+                    alert(`Please enter a valid number for pKa${i}`);
+                    return;
+                }
+                pKas.push(pKa);
+            }
+            
+            // Sort pKas in ascending order
+            pKas.sort((a, b) => a - b);
+            
+            // Update pKa input fields with sorted values
+            for (let i = 0; i < pKas.length; i++) {
+                document.getElementById(`pka${i+1}`).value = pKas[i];
+            }
+            
+            // Generate pH values and calculate data points
+            const pHStep = 0.1;
+            const dataPoints = [];
+            
+            for (let pH = pHMin; pH <= pHMax; pH += pHStep) {
+                const alphas = calculateAlphaValues(pH, pKas);
+                dataPoints.push({
+                    x: pH,
+                    alphas: alphas
+                });
+            }
+            
+            // Calculate datasets
+            const datasets = [];
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'];
+            const speciesNames = generateSpeciesNames(acidType);
+            
+            for (let i = 0; i <= acidType; i++) {
+                datasets.push({
+                    label: speciesNames[i],
+                    data: dataPoints.map(point => ({
+                        x: point.x,
+                        y: point.alphas[i]
+                    })),
+                    borderColor: colors[i],
+                    backgroundColor: colors[i] + '20',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0.4
+                });
+            }
+            
+            // Update species legend
+            updateSpeciesLegend(speciesNames, colors);
+            
+            // Create or update chart
+            const ctx = document.getElementById('diagramChart').getContext('2d');
+            
+            if (diagramChart) {
+                diagramChart.destroy();
+            }
+            
+            diagramChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'pH',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value.toFixed(1);
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Fraction (α)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0,
+                            max: 1,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return `pH: ${context[0].parsed.x.toFixed(1)}`;
+                                },
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y.toFixed(3)}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false
+                        }
+                    },
+                    animation: {
+                        duration: 500
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+            
+            // Add vertical lines at pKa values
+            addpKaLines(diagramChart, pKas);
+        }
+        
+        // Add vertical lines at pKa values
+        function addpKaLines(chart, pKas) {
+            const originalDraw = chart.draw;
+            
+            chart.draw = function() {
+                originalDraw.apply(this, arguments);
+                
+                const ctx = this.ctx;
+                const chartArea = this.chartArea;
+                const xAxis = this.scales.x;
+                
+                ctx.save();
+                
+                // Draw pKa lines
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 3]);
+                
+                pKas.forEach((pKa, index) => {
+                    const xPos = xAxis.getPixelForValue(pKa);
+                    
+                    // Only draw if within chart area
+                    if (xPos >= chartArea.left && xPos <= chartArea.right) {
+                        ctx.beginPath();
+                        ctx.moveTo(xPos, chartArea.bottom);
+                        ctx.lineTo(xPos, chartArea.top);
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                        ctx.stroke();
+                        
+                        // Add pKa label
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                        ctx.font = '12px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`pKa₍${index+1}₎: ${pKa}`, xPos, chartArea.top - 10);
+                    }
+                });
+                
+                ctx.restore();
+            };
+            
+            chart.update();
+        }
+        
+        // Generate species names based on acid type
+        function generateSpeciesNames(acidType) {
+            if (acidType === 1) {
+                return ['HA', 'A⁻'];
+            } else if (acidType === 2) {
+                return ['H₂A', 'HA⁻', 'A²⁻'];
+            } else {
+                return ['H₃A', 'H₂A⁻', 'HA²⁻', 'A³⁻'];
+            }
+        }
+        
+        // Update species legend
+        function updateSpeciesLegend(speciesNames, colors) {
+            const legendDiv = document.getElementById('species-legend');
+            legendDiv.innerHTML = '';
+            
+            speciesNames.forEach((name, index) => {
+                const speciesLabel = document.createElement('div');
+                speciesLabel.className = 'species-label';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'color-box';
+                colorBox.style.backgroundColor = colors[index];
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                
+                speciesLabel.appendChild(colorBox);
+                speciesLabel.appendChild(nameSpan);
+                
+                legendDiv.appendChild(speciesLabel);
+            });
+        }
+        
+        // Initialize page on load
+        window.onload = init;
+    </script>
+</body>
+</html>
