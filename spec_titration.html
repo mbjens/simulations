@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectrophotometric Titration Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .slider-container label {
+            width: 50px;
+            flex-shrink: 0;
+        }
+        .slider-container input[type="range"] {
+            width: 300px;
+            margin: 0 10px;
+        }
+        .slider-container .value {
+            width: 40px;
+            text-align: center;
+        }
+        .param-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .param-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        .param-item label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .param-item input {
+            width: 90%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .chart-container {
+            margin-top: 30px;
+            height: 400px;
+        }
+        .error {
+            color: red;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .info-box {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spectrophotometric Titration Simulator</h1>
+        <div class="info-box">
+            <p>This simulator models the reaction: A + T ⟶ P where A is the analyte, T is the titrant, P is the product, and <i>K</i> is the equilibrium constant for the titration reaction. A, T, and P all absorb light at the titration wavelength according to Beer's Law: <i>A = εbC</i>  
+          
+        </div>
+
+        <h2>Relative molar absorptivity (<i>ε</i>)</h2>
+        <div class="input-group">
+            <div class="slider-container">
+                <label for="epsA"><i>ε</i><sub>A</sub>:</label>
+                <input type="range" id="epsA" min="0" max="1" step="0.1" value="0.0">
+                <span class="value" id="epsA-value">0.0</span>
+            </div>
+            <div class="slider-container">
+                <label for="epsT"><i>ε</i><sub>T</sub>:</label>
+                <input type="range" id="epsT" min="0" max="1" step="0.1" value="0.0">
+                <span class="value" id="epsT-value">0.0</span>
+            </div>
+            <div class="slider-container">
+                <label for="epsP"><i>ε</i><sub>P</sub>:</label>
+                <input type="range" id="epsP" min="0" max="1" step="0.1" value="1.0">
+                <span class="value" id="epsP-value">1.0</span>
+            </div>
+        </div>
+        
+        <h2>Reaction parameters</h2>
+        <div class="param-container">
+            <div class="param-item">
+                <label for="cA">Analyte concentration [M]:</label>
+                <input type="number" id="cA" value="0.1" min="0.01" step="0.01">
+            </div>
+            <div class="param-item">
+                <label for="cT">Titrant concentration [M]:</label>
+                <input type="number" id="cT" value="0.1" min="0.01" step="0.01">
+            </div>
+        </div>
+        <div class="param-container">
+            <div class="param-item">
+                <label for="vA">Analyte volume [mL]:</label>
+                <input type="number" id="vA" value="50" min="1" step="1">
+            </div>
+            <div class="param-item">
+                <label for="K">Equilibrium constant (K):</label>
+                <input type="number" id="K" value="10000000" min="1" step="1">
+            </div>
+        </div>
+        
+        <div id="error-message" class="error"></div>
+        
+        <button id="calculate-btn">Draw titration curve</button>
+        
+        <div class="chart-container">
+            <canvas id="titrationChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Initialize chart
+        let titrationChart = new Chart(
+            document.getElementById('titrationChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total absorbance',
+                        data: [],
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Spectrophotometric Titration Curve',
+                            font: {
+                                size: 16
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Absorbance: ${context.raw.toFixed(4)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Titrant Volume [mL]'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Absorbance'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            }
+        );
+
+        // Update slider value displays
+        document.querySelectorAll('input[type="range"]').forEach(slider => {
+            const valueDisplay = document.getElementById(`${slider.id}-value`);
+            slider.addEventListener('input', () => {
+                valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
+            });
+        });
+
+        // Calculate button event listener
+        document.getElementById('calculate-btn').addEventListener('click', calculateTitration);
+
+        function calculateTitration() {
+            // Get all input values
+            const epsA = parseFloat(document.getElementById('epsA').value);
+            const epsT = parseFloat(document.getElementById('epsT').value);
+            const epsP = parseFloat(document.getElementById('epsP').value);
+            const cA = parseFloat(document.getElementById('cA').value);
+            const cT = parseFloat(document.getElementById('cT').value);
+            const vA = parseFloat(document.getElementById('vA').value);
+            const K = parseFloat(document.getElementById('K').value);
+            
+            // Validate inputs
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = '';
+            
+            if (isNaN(cA) || cA <= 0 || isNaN(cT) || cT <= 0 || isNaN(vA) || vA <= 0 || isNaN(K) || K <= 0) {
+                errorElement.textContent = 'All parameters must be positive numbers.';
+                return;
+            }
+
+            // Calculate titration curve
+            const vTValues = [];
+            const absorbanceValues = [];
+            
+            // Calculate the maximum volume of titrant needed (more than enough for complete reaction)
+            const maxVT = vA * 2 * (cA / cT);
+            const points = 200;
+            const vTStep = maxVT / points;
+            
+            for (let i = 0; i <= points; i++) {
+                const vT = i * vTStep;
+                vTValues.push(vT.toFixed(1));
+                
+                // Calculate concentrations at equilibrium
+                const totalVolume = vA + vT;
+                const initialA = (cA * vA) / totalVolume;
+                const initialT = (cT * vT) / totalVolume;
+                
+                // Solve for equilibrium concentrations using equilibrium constant
+                // A + T ⟶ P
+                // K = [P] / ([A] * [T])
+                
+                let equilA, equilT, equilP;
+                
+                if (K > 1e4) {
+                    // For very large K, assume the reaction goes to completion
+                    if (initialA > initialT) {
+                        equilA = initialA - initialT;
+                        equilT = 0;
+                        equilP = initialT;
+                    } else {
+                        equilA = 0;
+                        equilT = initialT - initialA;
+                        equilP = initialA;
+                    }
+                } else {
+                    // Solve the quadratic equation for non-extreme K values
+                    // For the reaction A + T ⟶ P with equilibrium constant K
+                    // If x is the amount reacted at equilibrium:
+                    // K = (x) / ((initialA - x) * (initialT - x))
+                    
+                    // This rearranges to: 
+                    // K(initialA - x)(initialT - x) = x
+                    // K*initialA*initialT - K*initialA*x - K*initialT*x + K*x^2 = x
+                    // K*x^2 - x*(1 + K*initialA + K*initialT) + K*initialA*initialT = 0
+                    
+                    const a = K;
+                    const b = -(1 + K*initialA + K*initialT);
+                    const c = K*initialA*initialT;
+                    
+                    // Using quadratic formula to find the amount reacted
+                    const discriminant = b*b - 4*a*c;
+                    if (discriminant < 0) {
+                        // This shouldn't happen for valid input
+                        continue;
+                    }
+                    
+                    // We take the smaller solution because the amount reacted cannot exceed
+                    // the initial amounts of A or T
+                    const x1 = (-b - Math.sqrt(discriminant)) / (2*a);
+                    const x2 = (-b + Math.sqrt(discriminant)) / (2*a);
+                    const x = Math.max(0, Math.min(x1, x2, initialA, initialT));
+                    
+                    equilA = initialA - x;
+                    equilT = initialT - x;
+                    equilP = x;
+                }
+                
+                // Calculate absorbance using Beer-Lambert Law
+                // Absorbance = ε * c * l (where l is path length, assumed to be 1)
+                const absorbance = (epsA * equilA) + (epsT * equilT) + (epsP * equilP);
+                absorbanceValues.push(absorbance);
+            }
+            
+            // Update chart
+            titrationChart.data.labels = vTValues;
+            titrationChart.data.datasets[0].data = absorbanceValues;
+            titrationChart.update();
+        }
+        
+        // Initial calculation on page load
+        calculateTitration();
+    </script>
+</body>
+</html>
