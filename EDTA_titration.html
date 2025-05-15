@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDTA Titration of a Metal Ion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 10px;
+            margin-top: 5px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        label {
+            display: inline-block;
+            font-weight: bold;
+            width: 400px;
+            margin-right: 10px;
+        }
+        select, input {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 12px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 220px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .download-btn {
+            background-color: #27ae60;
+        }
+        .download-btn:hover {
+            background-color: #219955;
+        }
+        .hidden {
+            display: none;
+        }
+        .conditional-k {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e8f4f8;
+            border-radius: 4px;
+            font-weight: bold;
+            text-align: center;
+            color: #0066cc;
+        }
+        #custom-dropdown {
+            flex: 1;
+            position: relative;
+        }
+        #custom-dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 4px;
+        }
+        #custom-dropdown-btn {
+            width: 100%;
+            text-align: left;
+            background-color: white;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .dropdown-item {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .dropdown-item:hover {
+            background-color: #f1f1f1;
+        }
+        .dropdown-arrow {
+            float: right;
+        }
+        .logk-value {
+        }
+        #chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EDTA Titration of a Metal Ion</h1>
+        
+        <div class="form-group">
+            <label for="metal-ion-display">Select metal ion:</label>
+            <div id="custom-dropdown">
+                <button type="button" id="custom-dropdown-btn">Select a metal ion</button>
+                <div id="custom-dropdown-content"></div>
+                <input type="hidden" id="metal-ion" value="">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="ph-value">pH value:</label>
+            <input type="number" id="ph-value" min="0" max="14" step="0.1" value="7.0">
+        </div>
+        
+        <div class="conditional-k" id="conditional-k">
+            Conditional formation constant, <i>K</i><sub>f</sub>' = &alpha;&#8729;<i>K</i><sub>f</sub> =  <span id="kf-prime-value">-</span>
+        </div>
+        
+        <div class="form-group">
+            <label for="metal-concentration">Metal ion solution concentration (M):</label>
+            <input type="number" id="metal-concentration" min="0.001" max="10" step="0.001" value="0.010">
+        </div>
+        
+        <div class="form-group">
+            <label for="solution-volume">Metal ion solution volume (mL):</label>
+            <input type="number" id="solution-volume" min="0.1" max="1000" step="0.1" value="50.0">
+        </div>
+        
+        <div class="form-group">
+            <label for="edta-concentration">EDTA solution concentration (M):</label>
+            <input type="number" id="edta-concentration" min="0.001" max="10" step="0.001" value="0.010">
+        </div>
+        
+        <div class="button-container">
+            <button id="generate-curve">Generate titration curve</button>
+            <button id="download-data" class="download-btn">Download data as CSV</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="chart-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.18.2/plotly.min.js"></script>
+    <script>
+        // Initialize the metal ions data from your table
+        const metalIons = [
+            { ion: "Li^{+}", displayName: "Li<sup>+</sup>", logK: 2.95 },
+            { ion: "Na^{+}", displayName: "Na<sup>+</sup>", logK: 1.86 },
+            { ion: "K^{+}", displayName: "K<sup>+</sup>", logK: 0.8 },
+            { ion: "Be^{2+}", displayName: "Be<sup>2+</sup>", logK: 9.7 },
+            { ion: "Mg^{2+}", displayName: "Mg<sup>2+</sup>", logK: 8.79 },
+            { ion: "Ca^{2+}", displayName: "Ca<sup>2+</sup>", logK: 10.65 },
+            { ion: "Sr^{2+}", displayName: "Sr<sup>2+</sup>", logK: 8.72 },
+            { ion: "Ba^{2+}", displayName: "Ba<sup>2+</sup>", logK: 7.88 },
+            { ion: "Ra^{2+}", displayName: "Ra<sup>2+</sup>", logK: 7.4 },
+            { ion: "Sc^{3+}", displayName: "Sc<sup>3+</sup>", logK: 23.1 },
+            { ion: "Y^{3+}", displayName: "Y<sup>3+</sup>", logK: 18.08 },
+            { ion: "La^{3+}", displayName: "La<sup>3+</sup>", logK: 15.36 },
+            { ion: "V^{2+}", displayName: "V<sup>2+</sup>", logK: 12.7 },
+            { ion: "Cr^{2+}", displayName: "Cr<sup>2+</sup>", logK: 13.6 },
+            { ion: "Mn^{2+}", displayName: "Mn<sup>2+</sup>", logK: 13.89 },
+            { ion: "Fe^{2+}", displayName: "Fe<sup>2+</sup>", logK: 14.3 },
+            { ion: "Co^{2+}", displayName: "Co<sup>2+</sup>", logK: 16.45 },
+            { ion: "Ni^{2+}", displayName: "Ni<sup>2+</sup>", logK: 18.4 },
+            { ion: "Cu^{2+}", displayName: "Cu<sup>2+</sup>", logK: 18.78 },
+            { ion: "Ti^{3+}", displayName: "Ti<sup>3+</sup>", logK: 21.3 },
+            { ion: "V^{3+}", displayName: "V<sup>3+</sup>", logK: 25.9 },
+            { ion: "Cr^{3+}", displayName: "Cr<sup>3+</sup>", logK: 23.4 },
+            { ion: "Mn^{3+}", displayName: "Mn<sup>3+</sup>", logK: 25.2 },
+            { ion: "Fe^{3+}", displayName: "Fe<sup>3+</sup>", logK: 25.1 },
+            { ion: "Co^{3+}", displayName: "Co<sup>3+</sup>", logK: 41.4 },
+            { ion: "Zr^{4+}", displayName: "Zr<sup>4+</sup>", logK: 29.3 },
+            { ion: "Hf^{4+}", displayName: "Hf<sup>4+</sup>", logK: 29.5 },
+            { ion: "VO^{2+}", displayName: "VO<sup>2+</sup>", logK: 18.7 },
+            { ion: "VO_2^{+}", displayName: "VO<sub>2</sub><sup>+</sup>", logK: 15.5 },
+            { ion: "Ag^{+}", displayName: "Ag<sup>+</sup>", logK: 7.2 },
+            { ion: "Tl^{+}", displayName: "Tl<sup>+</sup>", logK: 6.41 },
+            { ion: "Pd^{2+}", displayName: "Pd<sup>2+</sup>", logK: 25.6 },
+            { ion: "Zn^{2+}", displayName: "Zn<sup>2+</sup>", logK: 16.5 },
+            { ion: "Cd^{2+}", displayName: "Cd<sup>2+</sup>", logK: 16.5 },
+            { ion: "Hg^{2+}", displayName: "Hg<sup>2+</sup>", logK: 21.5 },
+            { ion: "Sn^{2+}", displayName: "Sn<sup>2+</sup>", logK: 18.3 },
+            { ion: "Pb^{2+}", displayName: "Pb<sup>2+</sup>", logK: 18 },
+            { ion: "Al^{3+}", displayName: "Al<sup>3+</sup>", logK: 16.4 },
+            { ion: "Ga^{3+}", displayName: "Ga<sup>3+</sup>", logK: 21.7 },
+            { ion: "In^{3+}", displayName: "In<sup>3+</sup>", logK: 24.9 },
+            { ion: "Tl^{3+}", displayName: "Tl<sup>3+</sup>", logK: 35.3 },
+            { ion: "Bi^{3+}", displayName: "Bi<sup>3+</sup>", logK: 27.8 },
+            { ion: "Ce^{3+}", displayName: "Ce<sup>3+</sup>", logK: 15.93 },
+            { ion: "Pr^{3+}", displayName: "Pr<sup>3+</sup>", logK: 16.3 },
+            { ion: "Nd^{3+}", displayName: "Nd<sup>3+</sup>", logK: 16.51 },
+            { ion: "Pm^{3+}", displayName: "Pm<sup>3+</sup>", logK: 16.9 },
+            { ion: "Sm^{3+}", displayName: "Sm<sup>3+</sup>", logK: 17.06 },
+            { ion: "Eu^{3+}", displayName: "Eu<sup>3+</sup>", logK: 17.25 },
+            { ion: "Gd^{3+}", displayName: "Gd<sup>3+</sup>", logK: 17.35 },
+            { ion: "Tb^{3+}", displayName: "Tb<sup>3+</sup>", logK: 17.87 },
+            { ion: "Dy^{3+}", displayName: "Dy<sup>3+</sup>", logK: 18.3 },
+            { ion: "Ho^{3+}", displayName: "Ho<sup>3+</sup>", logK: 18.56 },
+            { ion: "Er^{3+}", displayName: "Er<sup>3+</sup>", logK: 18.89 },
+            { ion: "Tm^{3+}", displayName: "Tm<sup>3+</sup>", logK: 19.32 },
+            { ion: "Yb^{3+}", displayName: "Yb<sup>3+</sup>", logK: 19.49 },
+            { ion: "Lu^{3+}", displayName: "Lu<sup>3+</sup>", logK: 19.74 },
+            { ion: "Th^{4+}", displayName: "Th<sup>4+</sup>", logK: 23.2 },
+            { ion: "U^{4+}", displayName: "U<sup>4+</sup>", logK: 25.7 }
+        ];
+
+        // EDTA dissociation constants (pKa values) - hexaprotic system
+        const pKa1 = 0.0;    // H₆Y²⁺ ⇌ H₅Y⁺ + H⁺
+        const pKa2 = 1.5;    // H₅Y⁺ ⇌ H₄Y + H⁺
+        const pKa3 = 2.0;    // H₄Y ⇌ H₃Y⁻ + H⁺
+        const pKa4 = 2.69;   // H₃Y⁻ ⇌ H₂Y²⁻ + H⁺
+        const pKa5 = 6.13;   // H₂Y²⁻ ⇌ HY³⁻ + H⁺
+        const pKa6 = 10.37;  // HY³⁻ ⇌ Y⁴⁻ + H⁺
+
+        // Function to calculate the fractional composition of fully deprotonated EDTA (Y⁴⁻) at a given pH
+        function calculateEDTAAlphaY4(pH) {
+            const H = Math.pow(10, -pH);
+            const Ka1 = Math.pow(10, -pKa1);
+            const Ka2 = Math.pow(10, -pKa2);
+            const Ka3 = Math.pow(10, -pKa3);
+            const Ka4 = Math.pow(10, -pKa4);
+            const Ka5 = Math.pow(10, -pKa5);
+            const Ka6 = Math.pow(10, -pKa6);
+            
+            // Calculate denominator for alpha expressions
+            const denom = 1 + 
+                          (H/Ka6) + 
+                          (H*H/(Ka5*Ka6)) + 
+                          (H*H*H/(Ka4*Ka5*Ka6)) + 
+                          (H*H*H*H/(Ka3*Ka4*Ka5*Ka6)) + 
+                          (H*H*H*H*H/(Ka2*Ka3*Ka4*Ka5*Ka6)) + 
+                          (H*H*H*H*H*H/(Ka1*Ka2*Ka3*Ka4*Ka5*Ka6));
+            
+            // Calculate alpha for Y⁴⁻ (fully deprotonated EDTA)
+            const alphaY4 = 1 / denom;
+            
+            return alphaY4;
+        }
+
+        // Function to format scientific notation
+        function formatScientific(num) {
+            if (num === 0) return "0";
+            if (num >= 0.01 && num < 100) {
+                return num.toFixed(2);
+            } else {
+                return num.toExponential(2);
+            }
+        }
+
+        // Function to populate the custom dropdown with metal ions
+        function populateMetalIonDropdown() {
+            const dropdownContent = document.getElementById('custom-dropdown-content');
+            const dropdownBtn = document.getElementById('custom-dropdown-btn');
+            
+            // Ensure dropdown is initially hidden
+            dropdownContent.style.display = 'none';
+            
+            // Sort metal ions alphabetically
+            metalIons.sort((a, b) => {
+                return a.ion.localeCompare(b.ion);
+            });
+            
+            // Create dropdown items
+            metalIons.forEach(ion => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.innerHTML = ion.displayName + ' &nbsp;&nbsp;&nbsp;<span class="logk-value">    (log <i>K</i><sub>f</sub> = ' + ion.logK.toFixed(2) + ')</span>';
+                item.dataset.value = ion.ion;
+                
+                item.addEventListener('click', function() {
+                    // Update hidden input value
+                    document.getElementById('metal-ion').value = this.dataset.value;
+                    // Update dropdown button text (without the log K value)
+                    const selectedIon = metalIons.find(ion => ion.ion === this.dataset.value);
+                    dropdownBtn.innerHTML = selectedIon.displayName + ' &nbsp;&nbsp;&nbsp;<span class="logk-value">    (log <i>K</i><sub>f</sub> = ' + selectedIon.logK.toFixed(2) + ')</span>';
+                    // Hide dropdown
+                    dropdownContent.style.display = 'none';
+                    // Update conditional formation constant
+                    updateConditionalK();
+                });
+                
+                dropdownContent.appendChild(item);
+            });
+            
+            // Toggle dropdown when button is clicked
+            dropdownBtn.addEventListener('click', function(event) {
+                event.stopPropagation(); // Prevent the document click from immediately closing it
+                if (dropdownContent.style.display === 'block') {
+                    dropdownContent.style.display = 'none';
+                } else {
+                    dropdownContent.style.display = 'block';
+                }
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!event.target.closest('#custom-dropdown')) {
+                    dropdownContent.style.display = 'none';
+                }
+            });
+        }
+
+        // Function to update the conditional formation constant (Kf')
+        function updateConditionalK() {
+            const selectedIon = document.getElementById('metal-ion').value;
+            const pH = parseFloat(document.getElementById('ph-value').value);
+            
+            // Input validation
+            if (!selectedIon || isNaN(pH)) {
+                document.getElementById('kf-prime-value').textContent = "Invalid input";
+                return null;
+            }
+            
+            // Find the selected metal ion in our data
+            const metalIon = metalIons.find(ion => ion.ion === selectedIon);
+            
+            if (!metalIon) {
+                document.getElementById('kf-prime-value').textContent = "Ion not found";
+                return null;
+            }
+            
+            // Calculate formation constant (K) from logK
+            const formationConstant = Math.pow(10, metalIon.logK);
+            
+            // Calculate alpha for fully deprotonated EDTA (Y⁴⁻)
+            const alphaY4 = calculateEDTAAlphaY4(pH);
+            
+            // Calculate effective formation constant
+            const effectiveK = formationConstant * alphaY4;
+            
+            // Update the conditional formation constant display
+            document.getElementById('kf-prime-value').textContent = formatScientific(effectiveK);
+            
+            return effectiveK;
+        }
+
+        // Function to calculate the equivalence point (Veq)
+        function calculateEquivalencePoint() {
+            const metalConcentration = parseFloat(document.getElementById('metal-concentration').value);
+            const solutionVolume = parseFloat(document.getElementById('solution-volume').value);
+            const edtaConcentration = parseFloat(document.getElementById('edta-concentration').value);
+            
+            // Input validation
+            if (isNaN(metalConcentration) || isNaN(solutionVolume) || isNaN(edtaConcentration) || 
+                metalConcentration <= 0 || solutionVolume <= 0 || edtaConcentration <= 0) {
+                return null;
+            }
+            
+            // Calculate Veq = (C_metal * V_metal) / C_EDTA
+            const veq = (metalConcentration * solutionVolume) / edtaConcentration;
+            
+            return veq;
+        }
+
+        // Function to calculate pM for a given volume of EDTA added
+        function calculatePM(vEdta) {
+            const kfPrime = updateConditionalK();
+            const metalConc = parseFloat(document.getElementById('metal-concentration').value);
+            const metalVol = parseFloat(document.getElementById('solution-volume').value);
+            const edtaConc = parseFloat(document.getElementById('edta-concentration').value);
+            
+            if (kfPrime === null || isNaN(metalConc) || isNaN(metalVol) || isNaN(edtaConc) || 
+                metalConc <= 0 || metalVol <= 0 || edtaConc <= 0) {
+                return null;
+            }
+            
+            // Calculate total volume
+            const vTotal = vEdta + metalVol;
+            
+            // Calculate formal concentrations
+            const formalMetal = (metalConc * metalVol) / vTotal;
+            const formalEDTA = (edtaConc * vEdta) / vTotal;
+            
+            // Calculate coefficients for quadratic formula
+            const a = kfPrime;
+            const b = kfPrime * formalEDTA - kfPrime * formalMetal + 1;
+            const c = -1;
+            
+            // Solve quadratic equation (using positive root)
+            let metalConcentration;
+            
+            // Check for special cases first
+            if (Math.abs(a) < 1e-10) {
+                // If a is effectively zero, use linear solution
+                metalConcentration = -c / b;
+            } else {
+                // Calculate discriminant
+                const discriminant = b * b - 4 * a * c;
+                
+                if (discriminant < 0) {
+                    // No real solutions
+                    return null;
+                }
+                
+                // Use the quadratic formula to get the positive root
+                const root1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+                const root2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+                
+                // Choose the positive root
+                metalConcentration = root1 > 0 ? root1 : root2;
+            }
+            
+            // Calculate pM = -log(metal concentration)
+            const pM = -Math.log10(metalConcentration);
+            
+            return pM;
+        }
+
+        // Function to generate the titration curve data
+        function generateTitrationCurveData() {
+            const veq = calculateEquivalencePoint();
+            
+            if (veq === null) {
+                return null;
+            }
+            
+            // Generate 201 points from 0 to 2*Veq
+            const numPoints = 201;
+            const maxVolume = 2 * veq;
+            const volumeStep = maxVolume / (numPoints - 1);
+            
+            const data = [];
+            
+            for (let i = 0; i < numPoints; i++) {
+                const volume = i * volumeStep;
+                const pM = calculatePM(volume);
+                
+                if (pM !== null) {
+                    data.push({ volume, pM });
+                }
+            }
+            
+            return data;
+        }
+
+        // Function to plot the titration curve
+        function plotTitrationCurve() {
+            const data = generateTitrationCurveData();
+            
+            if (!data || data.length === 0) {
+                alert("Could not generate titration curve data. Please check your inputs.");
+                return;
+            }
+            
+            const volumes = data.map(point => point.volume);
+            const pMs = data.map(point => point.pM);
+            
+            // Create the plot
+            const trace = {
+                x: volumes,
+                y: pMs,
+                mode: 'lines',
+                name: 'pM',
+                line: {
+                    color: '#2980b9',
+                    width: 2
+                },
+                hoverinfo: 'x+y'
+            };
+            
+            const layout = {
+                xaxis: {
+                    title: 'Volume of EDTA added (mL)',
+                    showgrid: true,
+                    zeroline: true,
+                    gridcolor: '#ddd',
+                    zerolinecolor: '#999',
+                },
+                yaxis: {
+                    title: 'pM (-log[M])',
+                    showgrid: true,
+                    zeroline: true,
+                    gridcolor: '#ddd',
+                    zerolinecolor: '#999',
+                },
+                hovermode: 'closest',
+                margin: { t: 20 } // Reduced top margin
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: false, // Hide the modebar
+                showTips: false
+            };
+            
+            Plotly.newPlot('chart-container', [trace], layout, config);
+        }
+
+        // Function to convert data to CSV format and trigger download
+        function downloadCSVData() {
+            console.log("Download function called"); // Debug log
+            
+            try {
+                const data = generateTitrationCurveData();
+                
+                if (!data || data.length === 0) {
+                    alert("Could not generate data. Please check your inputs and try again.");
+                    return;
+                }
+                
+                console.log("Generated data points: " + data.length); // Debug log
+                
+                // Create CSV content
+                let csvContent = "data:text/csv;charset=utf-8,";
+                csvContent += "Volume (mL),pM (-log[M])\n";
+                
+                data.forEach(point => {
+                    csvContent += `${point.volume.toFixed(4)},${point.pM.toFixed(4)}\n`;
+                });
+                
+                console.log("CSV content created"); // Debug log
+                
+                // Get the metal ion name for the filename
+                const selectedIonId = document.getElementById('metal-ion').value;
+                const selectedIon = metalIons.find(ion => ion.ion === selectedIonId);
+                const ionName = selectedIon ? selectedIon.ion.replace(/[\^{}]/g, '') : 'metal';
+                const pH = document.getElementById('ph-value').value;
+                
+                // Create the filename
+                const filename = `EDTA_titration_${ionName}_pH${pH}.csv`;
+                console.log("Filename: " + filename); // Debug log
+                
+                // Create an encoded URI component
+                const encodedUri = encodeURI(csvContent);
+                
+                // Create a temporary link element
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", filename);
+                link.style.display = 'none';
+                
+                // Add to document, click it, and remove it
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log("Download triggered"); // Debug log
+            } catch (error) {
+                console.error("Error in download function:", error);
+                alert("An error occurred while trying to download the data. Please try again.");
+            }
+        }
+
+        // Initialize everything when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM fully loaded"); // Debug log
+            
+            populateMetalIonDropdown();
+            
+            // Set default metal ion
+            const defaultIon = metalIons.find(ion => ion.ion === "Cu^{2+}") || metalIons[0];
+            document.getElementById('metal-ion').value = defaultIon.ion;
+            document.getElementById('custom-dropdown-btn').innerHTML = defaultIon.displayName + 
+                ' &nbsp;&nbsp;&nbsp;<span class="logk-value">(log <i>K</i><sub>f</sub> = ' + 
+                defaultIon.logK.toFixed(2) + ')</span>';
+            
+            // Add event listeners with debug logs
+            document.getElementById('ph-value').addEventListener('input', updateConditionalK);
+            
+            const generateBtn = document.getElementById('generate-curve');
+            generateBtn.addEventListener('click', function() {
+                console.log("Generate curve button clicked");
+                plotTitrationCurve();
+            });
+            
+            const downloadBtn = document.getElementById('download-data');
+            console.log("Download button element:", downloadBtn); // Debug log
+            downloadBtn.addEventListener('click', function() {
+                console.log("Download button clicked");
+                downloadCSVData();
+            });
+            
+            // Initialize values
+            updateConditionalK();
+            console.log("Initialization complete"); // Debug log
+        });
+    </script>
+</body>
+</html>
