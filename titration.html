@@ -95,6 +95,24 @@
         .input-item {
             margin-bottom: 5px;
         }
+        /* New styles for download button */
+        #downloadButtonContainer {
+            margin-top: 15px;
+            text-align: center;
+        }
+        #downloadCSVButton {
+            padding: 8px 15px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        #downloadCSVButton:hover {
+            background-color: #2ecc71;
+        }
     </style>
 </head>
 <body>
@@ -191,6 +209,11 @@
         <canvas id="staticCanvas"></canvas>
         <canvas id="cursorCanvas"></canvas>
         <div id="cursorInfo"></div>
+    </div>
+    
+    <!-- New download button container -->
+    <div id="downloadButtonContainer">
+        <button id="downloadCSVButton">Download Titration Data (CSV)</button>
     </div>
 
     <script>
@@ -520,6 +543,36 @@
             plotTitrationCurve(globalCurveData);
         }
 
+        // New function for CSV download
+        function downloadCSV() {
+            if (globalCurveData.length === 0) {
+                alert("No data to download. Please generate a titration curve first.");
+                return;
+            }
+
+            // Create CSV content
+            let csvContent = "Volume (mL),pH\n";
+            globalCurveData.forEach(point => {
+                csvContent += `${point.titrantVolume.toFixed(4)},${point.pH.toFixed(4)}\n`;
+            });
+
+            // Create file name with experiment details
+            const isAcid = currentTab === 'acid';
+            const analyteType = document.getElementById(isAcid ? 'acidType' : 'baseType').value;
+            const fileName = `${isAcid ? 'Acid' : 'Base'}_Titration_${analyteType}_${new Date().toISOString().slice(0,10)}.csv`;
+
+            // Create download link
+            const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            
+            // Trigger download and clean up
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // Add event listeners
         document.getElementById('acidType').addEventListener('change', () => updateTypeControls('acid'));
         document.getElementById('baseType').addEventListener('change', () => updateTypeControls('base'));
@@ -535,6 +588,9 @@
         document.getElementById('base_volume').addEventListener('input', updateTitrationCurve);
         document.getElementById('base_concentration_acid_tab').addEventListener('input', updateTitrationCurve);
         document.getElementById('acid_concentration_base_tab').addEventListener('input', updateTitrationCurve);
+        
+        // Add download button event listener
+        document.getElementById('downloadCSVButton').addEventListener('click', downloadCSV);
 
         // Tab switching
         document.querySelectorAll('.tab-button').forEach(button => {
