@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HPLC Separation Simulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .input-container {
+            background-color: #d1c9c5;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: inline-block;
+            width: 250px;
+        }
+        input, select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 80px;
+        }
+        .area-input {
+            width: 40px;
+        }
+        .logkw-input, .s-input {
+            width: 60px;
+        }
+        #customLogKw, #customS {
+            width: 60px;
+        }
+        #customName {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .compound-checkbox {
+            width: 20px;
+            height: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .run-button {
+            margin-top: 20px;
+            font-size: 16px;
+            padding: 10px 20px;
+        }
+        .simulation-container {
+            margin-top: 20px;
+        }
+        .compound-selection {
+            margin-bottom: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            table-layout: fixed;
+            font-size: 0.9em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        th:nth-child(1) { width: 13%; }
+        th:nth-child(2) { width: 30%; }
+        th:nth-child(3) { width: 20%; }
+        th:nth-child(4) { width: 20%; }
+        th:nth-child(5) { width: 17%; }
+        tr.custom-compound-row td {
+            background-color: #e8f4fc;
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .two-column {
+            display: flex;
+            gap: 20px;
+        }
+        .left-column {
+            flex: 1;
+        }
+        .right-column {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>HPLC simulator (C-18 column with water/methanol)</h1>
+    
+    <div class="two-column">
+        <div class="left-column">
+            <div class="input-container">
+                <h2>Input parameters</h2>
+                
+                <div class="input-group">
+                    <label for="deadTime">Solvent time (<i>t</i><sub>m</sub/>, min):</label>
+                    <input type="number" id="deadTime" min="0.1" step="0.1" value="1.0">
+                </div>
+                
+                <div class="input-group">
+                    <label for="plateNumber">Number of theoretical plates (N):</label>
+                    <input type="number" id="plateNumber" min="100" step="100" value="5000">
+                </div>
+                
+                <div class="input-group">
+                    <label for="organicPercentage">Organic solvent percentage (%):</label>
+                    <input type="number" id="organicPercentage" min="55" max="80" step="1" value="65">
+                </div>
+            </div>
+            
+            <div class="simulation-container">
+                <div id="chromatogramContainer" style="width: 100%; height: 400px;">
+                    <canvas id="chromatogramCanvas" width="500" height="400" style="border:1px solid #d3d3d3;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-column">
+            <div class="input-container">
+                <h2>Compounds</h2>
+                <div class="compound-selection">
+                    <table id="compoundsTable">
+                        <thead>
+                            <tr>
+                                <th>Add</th>
+                                <th>Compound</th>
+                                <th>log <i>K</i><sub>w</sub></th>
+                                <th><i>S</i></th>
+                                <th>Rel. Area</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compoundsList">
+                            <!-- Library compounds will be added here -->
+                        </tbody>
+                        <tbody>
+                            <tr class="custom-compound-row">
+                                <td colspan="5"><strong>Add new compound:</strong></td>
+                            </tr>
+                            <tr class="custom-compound-row">
+                                <td colspan="2"><input type="text" id="customName" placeholder="Name"></td>
+                                <td><input type="number" id="customLogKw" placeholder="log Kw" step="0.001"></td>
+                                <td><input type="number" id="customS" placeholder="S" step="0.001"></td>
+                                <td><input type="number" id="customArea" value="1.0" min="0" max="1" step="0.1" class="area-input"></td>
+                            </tr>
+                            <tr class="custom-compound-row">
+                                <td colspan="5"><button id="addCustomCompound">Add new compound</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Library of compounds
+            const compoundLibrary = [
+                {name: "p-nitrophenol", logKw: 2.323, S: 4.113},
+                {name: "phenol", logKw: 1.488, S: 2.734},
+                {name: "p-cresol", logKw: 2.059, S: 3.205},
+                {name: "2.5-xylenol", logKw: 2.591, S: 3.619},
+                {name: "benzene", logKw: 2.895, S: 3.806},
+                {name: "methyl benzoate", logKw: 2.617, S: 3.392},
+                {name: "anisole", logKw: 2.840, S: 3.646},
+                {name: "phenetole", logKw: 2.734, S: 3.258},
+                {name: "toluene", logKw: 3.118, S: 3.705}
+            ];
+            
+            // Get DOM elements
+            const deadTimeInput = document.getElementById('deadTime');
+            const plateNumberInput = document.getElementById('plateNumber');
+            const organicPercentageInput = document.getElementById('organicPercentage');
+            const compoundsList = document.getElementById('compoundsList');
+            const customNameInput = document.getElementById('customName');
+            const customLogKwInput = document.getElementById('customLogKw');
+            const customSInput = document.getElementById('customS');
+            const customAreaInput = document.getElementById('customArea');
+            const addCustomCompoundButton = document.getElementById('addCustomCompound');
+            
+            // Array to store all compounds (library + custom)
+            let allCompounds = [];
+            
+            // Initialize the library compounds in the table
+            function initializeCompoundLibrary() {
+                compoundsList.innerHTML = '';
+                allCompounds = [];
+                
+                compoundLibrary.forEach(compound => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" class="compound-checkbox" data-name="${compound.name}"></td>
+                        <td>${compound.name}</td>
+                        <td>${compound.logKw.toFixed(3)}</td>
+                        <td>${compound.S.toFixed(3)}</td>
+                        <td><input type="number" class="area-input" min="0" max="1" step="0.1" value="1.0" data-name="${compound.name}"></td>
+                    `;
+                    compoundsList.appendChild(row);
+                    
+                    // Add compound to the full list (initially not selected)
+                    allCompounds.push({
+                        ...compound,
+                        selected: false,
+                        relativeArea: 1.0,
+                        isCustom: false
+                    });
+                    
+                    // Add event listener to the checkbox
+                    const checkbox = row.querySelector('.compound-checkbox');
+                    checkbox.addEventListener('change', function() {
+                        const compoundName = this.getAttribute('data-name');
+                        toggleCompoundSelection(compoundName, this.checked);
+                    });
+                    
+                    // Add event listener to the area input
+                    const areaInput = row.querySelector('.area-input');
+                    areaInput.addEventListener('change', function() {
+                        const compoundName = this.getAttribute('data-name');
+                        const newArea = parseFloat(this.value);
+                        
+                        if (isNaN(newArea) || newArea < 0 || newArea > 1) {
+                            alert("Relative area must be between 0 and 1");
+                            this.value = 1.0; // Reset to default
+                            return;
+                        }
+                        
+                        updateCompoundArea(compoundName, newArea);
+                    });
+                });
+            }
+            
+            // Toggle compound selection
+            function toggleCompoundSelection(name, selected) {
+                allCompounds = allCompounds.map(compound => {
+                    if (compound.name === name) {
+                        return { ...compound, selected: selected };
+                    }
+                    return compound;
+                });
+                runSimulation(); // Auto-update when selection changes
+            }
+            
+            // Update compound area
+            function updateCompoundArea(name, area) {
+                allCompounds = allCompounds.map(compound => {
+                    if (compound.name === name) {
+                        return { ...compound, relativeArea: area };
+                    }
+                    return compound;
+                });
+                runSimulation(); // Auto-update when area changes
+            }
+            
+            // Update compound Log Kw
+            function updateCompoundLogKw(name, logKw) {
+                allCompounds = allCompounds.map(compound => {
+                    if (compound.name === name) {
+                        return { ...compound, logKw: logKw };
+                    }
+                    return compound;
+                });
+                runSimulation(); // Auto-update when log Kw changes
+            }
+            
+            // Update compound S value
+            function updateCompoundS(name, s) {
+                allCompounds = allCompounds.map(compound => {
+                    if (compound.name === name) {
+                        return { ...compound, S: s };
+                    }
+                    return compound;
+                });
+                runSimulation(); // Auto-update when S changes
+            }
+            
+            // Add a custom compound
+            addCustomCompoundButton.addEventListener('click', function() {
+                const name = customNameInput.value.trim();
+                const logKw = parseFloat(customLogKwInput.value);
+                const s = parseFloat(customSInput.value);
+                const area = parseFloat(customAreaInput.value);
+                
+                if (!name) {
+                    alert("Please enter a compound name");
+                    return;
+                }
+                
+                if (isNaN(logKw) || isNaN(s)) {
+                    alert("Please enter valid log Kw and S values");
+                    return;
+                }
+                
+                if (isNaN(area) || area < 0 || area > 1) {
+                    alert("Relative area must be between 0 and 1");
+                    return;
+                }
+                
+                // Check if compound already exists
+                const exists = allCompounds.some(c => c.name === name);
+                if (exists) {
+                    alert(`Compound "${name}" already exists`);
+                    return;
+                }
+                
+                // Add to the compounds list
+                const newCompound = {
+                    name: name,
+                    logKw: logKw,
+                    S: s,
+                    relativeArea: area,
+                    selected: true,
+                    isCustom: true
+                };
+                
+                allCompounds.push(newCompound);
+                
+                // Add to the table
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><input type="checkbox" class="compound-checkbox" data-name="${name}" checked></td>
+                    <td>${name}</td>
+                    <td><input type="number" class="logkw-input" min="0" step="0.001" value="${logKw.toFixed(3)}" data-name="${name}"></td>
+                    <td><input type="number" class="s-input" min="0" step="0.001" value="${s.toFixed(3)}" data-name="${name}"></td>
+                    <td><input type="number" class="area-input" min="0" max="1" step="0.1" value="${area.toFixed(1)}" data-name="${name}"></td>
+                `;
+                
+                // Insert at the end of the compounds list
+                compoundsList.appendChild(row);
+                
+                // Add event listeners
+                const checkbox = row.querySelector('.compound-checkbox');
+                checkbox.addEventListener('change', function() {
+                    toggleCompoundSelection(name, this.checked);
+                });
+                
+                const areaInput = row.querySelector('.area-input');
+                areaInput.addEventListener('change', function() {
+                    const newArea = parseFloat(this.value);
+                    
+                    if (isNaN(newArea) || newArea < 0 || newArea > 1) {
+                        alert("Relative area must be between 0 and 1");
+                        this.value = area.toFixed(1); // Reset to default
+                        return;
+                    }
+                    
+                    updateCompoundArea(name, newArea);
+                });
+                
+                // Add event listeners for log Kw and S inputs
+                const logKwInput = row.querySelector('.logkw-input');
+                logKwInput.addEventListener('change', function() {
+                    const newLogKw = parseFloat(this.value);
+                    
+                    if (isNaN(newLogKw)) {
+                        alert("Please enter a valid Log Kw value");
+                        this.value = logKw.toFixed(3); // Reset to previous
+                        return;
+                    }
+                    
+                    updateCompoundLogKw(name, newLogKw);
+                });
+                
+                const sInput = row.querySelector('.s-input');
+                sInput.addEventListener('change', function() {
+                    const newS = parseFloat(this.value);
+                    
+                    if (isNaN(newS) || newS < 0) {
+                        alert("Please enter a valid positive S value");
+                        this.value = s.toFixed(3); // Reset to previous
+                        return;
+                    }
+                    
+                    updateCompoundS(name, newS);
+                });
+                
+                // Clear the custom inputs
+                customNameInput.value = "";
+                customLogKwInput.value = "";
+                customSInput.value = "";
+                customAreaInput.value = "1.0";
+                
+                // Auto-update the simulation
+                runSimulation();
+            });
+            
+            // Function to run the simulation
+            function runSimulation() {
+                // Get input values
+                const deadTime = parseFloat(deadTimeInput.value);
+                const plateNumber = parseInt(plateNumberInput.value);
+                const organicPercentage = parseFloat(organicPercentageInput.value);
+                
+                // Validate inputs
+                if (deadTime <= 0 || isNaN(deadTime)) {
+                    console.log("Dead time must be positive");
+                    return;
+                }
+                
+                if (plateNumber < 100 || isNaN(plateNumber)) {
+                    console.log("Number of theoretical plates must be at least 100");
+                    return;
+                }
+                
+                if (organicPercentage < 55 || organicPercentage > 80 || isNaN(organicPercentage)) {
+                    console.log("Organic solvent percentage must be between 55% and 80%");
+                    return;
+                }
+                
+                // Filter selected compounds
+                const selectedCompounds = allCompounds.filter(compound => compound.selected);
+                
+                if (selectedCompounds.length === 0) {
+                    // Nothing to display if no compounds are selected
+                    const canvas = document.getElementById('chromatogramCanvas');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        
+                        // Display a message if no compounds are selected
+                        ctx.font = '16px Arial';
+                        ctx.fillStyle = 'black';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('Add at least one compound to display the chromatogram', canvas.width/2, canvas.height/2);
+                    }
+                    return;
+                }
+                
+                // Calculate retention parameters for each compound
+                const organicFraction = organicPercentage / 100; // Convert percentage to fraction
+                const compoundsWithRetention = selectedCompounds.map(compound => {
+                    // Calculate capacity factor: k = 10^[(log kw) - S * fraction of organic solvent]
+                    const k = Math.pow(10, compound.logKw - compound.S * organicFraction);
+                    
+                    // Calculate retention time: tr = tm * (k + 1)
+                    const tr = deadTime * (k + 1);
+                    
+                    // Calculate peak width (standard deviation): sigma = tr / sqrt(N)
+                    const sigma = tr / Math.sqrt(plateNumber);
+                    
+                    // Calculate normalization factor: F = (relative area) / (sigma * sqrt(2*pi))
+                    const F = compound.relativeArea / (sigma * Math.sqrt(2 * Math.PI));
+                    
+                    return {
+                        ...compound,
+                        k: k,
+                        tr: tr,
+                        sigma: sigma,
+                        F: F
+                    };
+                });
+                
+                // Sort compounds by retention time
+                compoundsWithRetention.sort((a, b) => a.tr - b.tr);
+                
+                // Calculate total run time: largest retention time + 3*sigma, rounded up to nearest minute
+                const lastCompound = compoundsWithRetention[compoundsWithRetention.length - 1];
+                const totalRunTime = Math.ceil(lastCompound.tr + 3 * lastCompound.sigma);
+                
+                // Create time steps for chromatogram - 2500 points
+                const TIME_STEPS = 2500;
+                const timeStep = totalRunTime / TIME_STEPS;
+                const timePoints = Array.from({ length: TIME_STEPS + 1 }, (_, i) => i * timeStep);
+                
+                // Add a solvent peak at tm with height 0.02 and sigma 0.01 min
+                const solventPeak = {
+                    name: "solvent",
+                    tr: deadTime,
+                    sigma: 0.01,
+                    F: 0.02 / (0.01 * Math.sqrt(2 * Math.PI)) // Normalize to give height of 0.02
+                };
+                
+                // Calculate detector signal at each time point and normalize to maximum of 1
+                const detectorSignal = timePoints.map(t => {
+                    // Start with solvent peak
+                    const solventContribution = solventPeak.F * 
+                        Math.exp(-Math.pow(t - solventPeak.tr, 2) / (2 * Math.pow(solventPeak.sigma, 2)));
+                    
+                    // Add contributions from all compounds
+                    return compoundsWithRetention.reduce((signal, compound) => {
+                        // Calculate Gaussian peak: F * exp(-((t-tr)^2) / (2*sigma^2))
+                        const exponent = -Math.pow(t - compound.tr, 2) / (2 * Math.pow(compound.sigma, 2));
+                        const contribution = compound.F * Math.exp(exponent);
+                        return signal + contribution;
+                    }, solventContribution); // Start with solvent contribution
+                });
+                
+                // Find the maximum signal for normalization
+                const maxSignal = Math.max(...detectorSignal);
+                
+                // Normalize detector signal to maximum of 1
+                const normalizedSignal = detectorSignal.map(signal => signal / maxSignal);
+                
+                // Add solvent peak to the compounds for labeling
+                const allPeaks = [
+                    {
+                        name: "solvent",
+                        tr: deadTime,
+                        sigma: 0.01,
+                        F: solventPeak.F / maxSignal // Normalize to the same scale
+                    },
+                    ...compoundsWithRetention
+                ];
+                
+                // Draw the chromatogram
+                drawChromatogram(timePoints, normalizedSignal, totalRunTime, allPeaks, maxSignal);
+            }
+            
+            // Function to draw the chromatogram
+            function drawChromatogram(timePoints, detectorSignal, totalRunTime, compounds, maxSignal) {
+                const canvas = document.getElementById('chromatogramCanvas');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                const width = canvas.width;
+                const height = canvas.height;
+                const padding = { top: 50, right: 30, bottom: 50, left: 60 };
+                
+                const plotWidth = width - padding.left - padding.right;
+                const plotHeight = height - padding.top - padding.bottom;
+                
+                // Clear the canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Draw the axes
+                ctx.beginPath();
+                ctx.moveTo(padding.left, padding.top);
+                ctx.lineTo(padding.left, height - padding.bottom);
+                ctx.lineTo(width - padding.right, height - padding.bottom);
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Draw x-axis label
+                ctx.font = '14px Arial';
+                ctx.fillStyle = 'black';
+                ctx.textAlign = 'center';
+                ctx.fillText('Time (min)', width / 2, height - 10);
+                
+                // Draw y-axis label
+                ctx.save();
+                ctx.translate(15, height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText('Signal', 0, 0);
+                ctx.restore();
+                
+                // Draw x-axis ticks
+                const xTickCount = 10;
+                const xTickStep = totalRunTime / xTickCount;
+                
+                for (let i = 0; i <= xTickCount; i++) {
+                    const x = padding.left + (i * plotWidth / xTickCount);
+                    const tickValue = i * xTickStep;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x, height - padding.bottom);
+                    ctx.lineTo(x, height - padding.bottom + 5);
+                    ctx.stroke();
+                    
+                    ctx.font = '10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(tickValue.toFixed(1), x, height - padding.bottom + 15);
+                }
+                
+                // Draw y-axis ticks
+                const yTickCount = 5;
+                
+                for (let i = 0; i <= yTickCount; i++) {
+                    const y = height - padding.bottom - (i * plotHeight / yTickCount);
+                    const tickValue = i / yTickCount;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(padding.left, y);
+                    ctx.lineTo(padding.left - 5, y);
+                    ctx.stroke();
+                    
+                    ctx.font = '10px Arial';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(tickValue.toFixed(1), padding.left - 8, y + 3);
+                }
+                
+                // Draw the chromatogram line
+                ctx.beginPath();
+                for (let i = 0; i < timePoints.length; i++) {
+                    const x = padding.left + (timePoints[i] / totalRunTime) * plotWidth;
+                    const y = height - padding.bottom - (detectorSignal[i]) * plotHeight;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Fill area under the curve
+                ctx.lineTo(padding.left + plotWidth, height - padding.bottom);
+                ctx.lineTo(padding.left, height - padding.bottom);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(0, 0, 255, 0.1)';
+                ctx.fill();
+                
+                // Mark compound retention times on the chromatogram
+                compounds.forEach((compound, index) => {
+                    const x = padding.left + (compound.tr / totalRunTime) * plotWidth;
+                    
+                    // Calculate the height of the peak at its retention time
+                    const signalAtPeak = compounds.reduce((signal, c) => {
+                        const exponent = -Math.pow(compound.tr - c.tr, 2) / (2 * Math.pow(c.sigma, 2));
+                        const contribution = c.F * Math.exp(exponent);
+                        return signal + contribution;
+                    }, 0) / maxSignal;
+                    
+                    const y = height - padding.bottom - signalAtPeak * plotHeight;
+                    
+                    // Draw a marker at the peak
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'red';
+                    ctx.fill();
+                    
+                    // Draw a label with compound name
+                    // Calculate offset to avoid label overlap
+                    const offsetIndex = index % 3; // Use 3 different heights
+                    const offsetY = 20 + (offsetIndex * 15);
+                    
+                    // Draw label background
+                    const labelText = compound.name;
+                    ctx.font = 'bold 11px Arial';
+                    const textWidth = ctx.measureText(labelText).width + 6;
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.fillRect(x - textWidth/2, y - offsetY - 8, textWidth, 16);
+                    
+                    // Draw border around label
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x - textWidth/2, y - offsetY - 8, textWidth, 16);
+                    
+                    // Draw text
+                    ctx.fillStyle = 'black';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(labelText, x, y - offsetY);
+                    
+                    // Draw line connecting label to peak
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x, y - offsetY + 8);
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.stroke();
+                });
+            }
+            
+            // Function to set up event listeners for auto-update
+            function setupAutoUpdateListeners() {
+                // Update on parameter changes
+                deadTimeInput.addEventListener('input', runSimulation);
+                plateNumberInput.addEventListener('input', runSimulation);
+                organicPercentageInput.addEventListener('input', runSimulation);
+                
+                // Set up a mutation observer to watch for changes in the compounds list
+                const observer = new MutationObserver(runSimulation);
+                observer.observe(compoundsList, { childList: true, subtree: true });
+                
+                // Add additional listeners to checkboxes and area inputs
+                document.addEventListener('change', function(e) {
+                    if (e.target.classList.contains('compound-checkbox') || 
+                        e.target.classList.contains('area-input')) {
+                        runSimulation();
+                    }
+                });
+            }
+            
+            // Initialize the library when the page loads
+            initializeCompoundLibrary();
+            setupAutoUpdateListeners();
+            
+            // Run the simulation initially
+            setTimeout(runSimulation, 100);
+        });
+    </script>
+</body>
+</html>
