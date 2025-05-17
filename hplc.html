@@ -153,7 +153,7 @@
                             <tr>
                                 <th>Add</th>
                                 <th>Compound</th>
-                                <th>log <i>K</i><sub>w</sub></th>
+                                <th>log <i>k</i><sub>w</sub></th>
                                 <th><i>S</i></th>
                                 <th>Rel. Area</th>
                             </tr>
@@ -167,7 +167,7 @@
                             </tr>
                             <tr class="custom-compound-row">
                                 <td colspan="2"><input type="text" id="customName" placeholder="Name"></td>
-                                <td><input type="number" id="customLogKw" placeholder="log Kw" step="0.001"></td>
+                                <td><input type="number" id="customLogKw" placeholder="log kw" step="0.001"></td>
                                 <td><input type="number" id="customS" placeholder="S" step="0.001"></td>
                                 <td><input type="number" id="customArea" value="1.0" min="0" max="1" step="0.1" class="area-input"></td>
                             </tr>
@@ -316,7 +316,7 @@
                 }
                 
                 if (isNaN(logKw) || isNaN(s)) {
-                    alert("Please enter valid log Kw and S values");
+                    alert("Please enter valid log kw and S values");
                     return;
                 }
                 
@@ -382,7 +382,7 @@
                     const newLogKw = parseFloat(this.value);
                     
                     if (isNaN(newLogKw)) {
-                        alert("Please enter a valid Log Kw value");
+                        alert("Please enter a valid log kw value");
                         this.value = logKw.toFixed(3); // Reset to previous
                         return;
                     }
