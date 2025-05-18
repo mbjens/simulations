@@ -93,6 +93,10 @@
             margin-right: 8px;
             border-radius: 3px;
         }
+        .download-section {
+            margin-top: 20px;
+            text-align: center;
+        }
         @media (max-width: 768px) {
             .input-field {
                 min-width: 100%;
@@ -108,7 +112,7 @@
             <div class="input-group">
                 <div class="input-field">
                     <label for="acid-type">Acid Type:</label>
-                    <select id="acid-type" onchange="updateInputFields()">
+                    <select id="acid-type" onchange="updateInputFields(); generateDiagram();">
                         <option value="1">Monoprotic (HA)</option>
                         <option value="2">Diprotic (H₂A)</option>
                         <option value="3">Triprotic (H₃A)</option>
@@ -117,35 +121,34 @@
                 
                 <div class="input-field">
                     <label for="ph-range-min">pH Range (Min):</label>
-                    <input type="number" id="ph-range-min" value="0" step="0.5" min="0" max="14">
+                    <input type="number" id="ph-range-min" value="0" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
                 </div>
                 
                 <div class="input-field">
                     <label for="ph-range-max">pH Range (Max):</label>
-                    <input type="number" id="ph-range-max" value="14" step="0.5" min="0" max="14">
+                    <input type="number" id="ph-range-max" value="14" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
                 </div>
             </div>
             
             <div id="pka-inputs" class="input-group">
-                <div class="input-field">
-                    <label for="pka1">pKa₁:</label>
-                    <input type="number" id="pka1" value="4.7" step="0.1" min="0" max="14">
-                </div>
+                <!-- pKa inputs will be added here dynamically -->
             </div>
-            
-            <button onclick="generateDiagram()">Generate Diagram</button>
         </div>
         
-
         <div id="species-legend" class="species-info"></div>
         
         <div class="chart-container">
             <canvas id="diagramChart"></canvas>
         </div>
+        
+        <div class="download-section">
+            <button onclick="downloadCSV()">Download Data as CSV</button>
+        </div>
     </div>
 
     <script>
         let diagramChart = null;
+        let currentData = []; // Store the current data for CSV export
         
         // Initialize the page
         function init() {
@@ -176,42 +179,14 @@
                 input.step = '0.1';
                 input.min = '0';
                 input.max = '14';
+                // Add onchange and oninput event handlers for auto-update
+                input.onchange = generateDiagram;
+                input.oninput = generateDiagram;
                 
                 inputField.appendChild(label);
                 inputField.appendChild(input);
                 pkaInputsDiv.appendChild(inputField);
             }
-        }
-        
-        // Apply preset values
-        function applyPreset() {
-            const preset = document.getElementById('presets').value;
-            
-            if (preset === "") return;
-            
-            const presetValues = {
-                'acetic': { type: 1, pKas: [4.76], range: [2, 8] },
-                'carbonic': { type: 2, pKas: [6.35, 10.33], range: [4, 12] },
-                'phosphoric': { type: 3, pKas: [2.15, 7.20, 12.35], range: [0, 14] },
-                'citric': { type: 3, pKas: [3.13, 4.76, 6.40], range: [1, 9] },
-                'glycine': { type: 2, pKas: [2.34, 9.60], range: [0, 12] }
-            };
-            
-            const selection = presetValues[preset];
-            document.getElementById('acid-type').value = selection.type;
-            updateInputFields();
-            
-            // Set pKa values
-            for (let i = 0; i < selection.pKas.length; i++) {
-                document.getElementById(`pka${i+1}`).value = selection.pKas[i];
-            }
-            
-            // Set pH range
-            document.getElementById('ph-range-min').value = selection.range[0];
-            document.getElementById('ph-range-max').value = selection.range[1];
-            
-            // Generate diagram
-            generateDiagram();
         }
         
         // Calculate alpha values for given pH and pKas
@@ -267,7 +242,10 @@
             // Collect pKa values
             const pKas = [];
             for (let i = 1; i <= acidType; i++) {
-                const pKa = parseFloat(document.getElementById(`pka${i}`).value);
+                const pKaInput = document.getElementById(`pka${i}`);
+                if (!pKaInput) return; // Exit if the inputs aren't ready yet
+                
+                const pKa = parseFloat(pKaInput.value);
                 if (isNaN(pKa)) {
                     alert(`Please enter a valid number for pKa${i}`);
                     return;
@@ -286,6 +264,7 @@
             // Generate pH values and calculate data points
             const pHStep = 0.1;
             const dataPoints = [];
+            currentData = []; // Reset current data
             
             for (let pH = pHMin; pH <= pHMax; pH += pHStep) {
                 const alphas = calculateAlphaValues(pH, pKas);
@@ -293,6 +272,18 @@
                     x: pH,
                     alphas: alphas
                 });
+                
+                // Store data for CSV export
+                const dataRow = {
+                    pH: pH.toFixed(1)
+                };
+                
+                const speciesNames = generateSpeciesNames(acidType);
+                alphas.forEach((alpha, i) => {
+                    dataRow[speciesNames[i]] = alpha.toFixed(4);
+                });
+                
+                currentData.push(dataRow);
             }
             
             // Calculate datasets
@@ -476,8 +467,47 @@
             });
         }
         
+        // Download data as CSV
+        function downloadCSV() {
+            if (currentData.length === 0) {
+                alert("No data available. Please generate the diagram first.");
+                return;
+            }
+            
+            // Get headers from the first data row
+            const headers = Object.keys(currentData[0]);
+            
+            // Create CSV content
+            let csvContent = headers.join(',') + '\n';
+            
+            // Add data rows
+            currentData.forEach(row => {
+                const values = headers.map(header => row[header]);
+                csvContent += values.join(',') + '\n';
+            });
+            
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            
+            // Set link attributes
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'fractional_composition_data.csv');
+            link.style.visibility = 'hidden';
+            
+            // Add to document, click and remove
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
         // Initialize page on load
-        window.onload = init;
+        window.onload = function() {
+            init();
+            // Generate the diagram on page load
+            setTimeout(generateDiagram, 100); // Small delay to ensure DOM is ready
+        };
     </script>
 </body>
 </html>
