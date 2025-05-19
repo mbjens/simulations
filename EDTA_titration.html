@@ -132,6 +132,9 @@
             height: 400px;
             margin-top: 20px;
         }
+        .status-indicator {
+            display: none; /* Hide status indicators */
+        }
     </style>
 </head>
 <body>
@@ -172,9 +175,11 @@
         </div>
         
         <div class="button-container">
-            <button id="generate-curve">Generate titration curve</button>
+            <!-- Generate button removed, as curve will auto-generate -->
             <button id="download-data" class="download-btn">Download data as CSV</button>
         </div>
+        
+        <!-- Status indicator removed as requested -->
     </div>
     
     <div class="container">
@@ -253,6 +258,19 @@
         const pKa5 = 6.13;   // H₂Y²⁻ ⇌ HY³⁻ + H⁺
         const pKa6 = 10.37;  // HY³⁻ ⇌ Y⁴⁻ + H⁺
 
+        // Add a debounce function to limit how often the chart updates
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
         // Function to calculate the fractional composition of fully deprotonated EDTA (Y⁴⁻) at a given pH
         function calculateEDTAAlphaY4(pH) {
             const H = Math.pow(10, -pH);
@@ -316,8 +334,8 @@
                     dropdownBtn.innerHTML = selectedIon.displayName + ' &nbsp;&nbsp;&nbsp;<span class="logk-value">    (log <i>K</i><sub>f</sub> = ' + selectedIon.logK.toFixed(2) + ')</span>';
                     // Hide dropdown
                     dropdownContent.style.display = 'none';
-                    // Update conditional formation constant
-                    updateConditionalK();
+                    // Update conditional formation constant and plot
+                    updateAll();
                 });
                 
                 dropdownContent.appendChild(item);
@@ -476,10 +494,13 @@
 
         // Function to plot the titration curve
         function plotTitrationCurve() {
+            // No status indicator needed
+            
             const data = generateTitrationCurveData();
             
             if (!data || data.length === 0) {
-                alert("Could not generate titration curve data. Please check your inputs.");
+                // No status indicator to update
+                console.log("Could not generate titration curve data. Please check your inputs.");
                 return;
             }
             
@@ -525,12 +546,21 @@
             };
             
             Plotly.newPlot('chart-container', [trace], layout, config);
+            
+            // Update status indicator removed - no longer displaying messages
         }
+
+        // Function to update everything - conditional K and plot titration curve
+        function updateAll() {
+            updateConditionalK();
+            plotTitrationCurve();
+        }
+
+        // Debounced version of updateAll to avoid too many updates
+        const debouncedUpdateAll = debounce(updateAll, 100);
 
         // Function to convert data to CSV format and trigger download
         function downloadCSVData() {
-            console.log("Download function called"); // Debug log
-            
             try {
                 const data = generateTitrationCurveData();
                 
@@ -538,8 +568,6 @@
                     alert("Could not generate data. Please check your inputs and try again.");
                     return;
                 }
-                
-                console.log("Generated data points: " + data.length); // Debug log
                 
                 // Create CSV content
                 let csvContent = "data:text/csv;charset=utf-8,";
@@ -549,8 +577,6 @@
                     csvContent += `${point.volume.toFixed(4)},${point.pM.toFixed(4)}\n`;
                 });
                 
-                console.log("CSV content created"); // Debug log
-                
                 // Get the metal ion name for the filename
                 const selectedIonId = document.getElementById('metal-ion').value;
                 const selectedIon = metalIons.find(ion => ion.ion === selectedIonId);
@@ -559,7 +585,6 @@
                 
                 // Create the filename
                 const filename = `EDTA_titration_${ionName}_pH${pH}.csv`;
-                console.log("Filename: " + filename); // Debug log
                 
                 // Create an encoded URI component
                 const encodedUri = encodeURI(csvContent);
@@ -575,7 +600,6 @@
                 link.click();
                 document.body.removeChild(link);
                 
-                console.log("Download triggered"); // Debug log
             } catch (error) {
                 console.error("Error in download function:", error);
                 alert("An error occurred while trying to download the data. Please try again.");
@@ -584,8 +608,7 @@
 
         // Initialize everything when the DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM fully loaded"); // Debug log
-            
+            // Populate the dropdown with metal ions
             populateMetalIonDropdown();
             
             // Set default metal ion
@@ -595,25 +618,18 @@
                 ' &nbsp;&nbsp;&nbsp;<span class="logk-value">(log <i>K</i><sub>f</sub> = ' + 
                 defaultIon.logK.toFixed(2) + ')</span>';
             
-            // Add event listeners with debug logs
-            document.getElementById('ph-value').addEventListener('input', updateConditionalK);
+            // Add event listeners for all inputs to update the plot
+            document.getElementById('ph-value').addEventListener('input', debouncedUpdateAll);
+            document.getElementById('metal-concentration').addEventListener('input', debouncedUpdateAll);
+            document.getElementById('solution-volume').addEventListener('input', debouncedUpdateAll);
+            document.getElementById('edta-concentration').addEventListener('input', debouncedUpdateAll);
             
-            const generateBtn = document.getElementById('generate-curve');
-            generateBtn.addEventListener('click', function() {
-                console.log("Generate curve button clicked");
-                plotTitrationCurve();
-            });
-            
+            // Add event listener for download button
             const downloadBtn = document.getElementById('download-data');
-            console.log("Download button element:", downloadBtn); // Debug log
-            downloadBtn.addEventListener('click', function() {
-                console.log("Download button clicked");
-                downloadCSVData();
-            });
+            downloadBtn.addEventListener('click', downloadCSVData);
             
-            // Initialize values
-            updateConditionalK();
-            console.log("Initialization complete"); // Debug log
+            // Initialize values and plot the curve
+            updateAll();
         });
     </script>
 </body>
