@@ -10,19 +10,41 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             background-color: #f5f5f5;
+            height: 100vh;
         }
         .container {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: calc(100vh - 40px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         h1 {
             color: #333;
             margin-top: 0;
+            text-align: center; /* Center the title */
+            margin-bottom: 10px;
+        }
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .controls-panel {
+            width: 40%;
+            padding-right: 20px;
+            overflow-y: auto;
+        }
+        .chart-panel {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
         }
         .input-group {
             margin-bottom: 15px;
@@ -37,62 +59,79 @@
             flex-shrink: 0;
         }
         .slider-container input[type="range"] {
-            width: 300px;
+            flex: 1;
             margin: 0 10px;
         }
         .slider-container .value {
             width: 40px;
             text-align: center;
         }
-        .param-container {
+        .param-container-column {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            width: 100%;
         }
-        .param-item {
-            flex: 1;
-            min-width: 200px;
+        .param-item-full {
+            width: 100%;
         }
-        .param-item label {
+        .param-item-full label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
+            font-size: 0.9rem;
         }
-        .param-item input {
-            width: 90%;
-            padding: 8px;
+        .param-item-full input {
+            width: 95%;
+            padding: 6px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
         .chart-container {
-            margin-top: 30px;
-            height: 400px;
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
         }
         .error {
             color: red;
             margin-bottom: 10px;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            text-align: center;
-            font-size: 16px;
-            cursor: pointer;
-            border-radius: 4px;
-            display: block;
-            margin: 0 auto;
-        }
-        button:hover {
-            background-color: #45a049;
+            font-size: 0.9rem;
         }
         .info-box {
             background-color: #e7f3fe;
             border-left: 6px solid #2196F3;
             padding: 10px;
             margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        h2 {
+            font-size: 1.1rem;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .section-content {
+            padding-left: 15px; /* Indent the content under each section */
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 10px;
+            width: 95%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .download-section {
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -100,65 +139,82 @@
     <div class="container">
         <h1>Spectrophotometric Titration Simulator</h1>
         <div class="info-box">
-            <p>This simulator models the reaction: A + T ⟶ P where A is the analyte, T is the titrant, P is the product, and <i>K</i> is the equilibrium constant for the titration reaction. A, T, and P all absorb light at the titration wavelength according to Beer's Law: <i>A = εbC</i>  
-          
-        </div>
-
-        <h2>Relative molar absorptivity (<i>ε</i>)</h2>
-        <div class="input-group">
-            <div class="slider-container">
-                <label for="epsA"><i>ε</i><sub>A</sub>:</label>
-                <input type="range" id="epsA" min="0" max="1" step="0.1" value="0.0">
-                <span class="value" id="epsA-value">0.0</span>
-            </div>
-            <div class="slider-container">
-                <label for="epsT"><i>ε</i><sub>T</sub>:</label>
-                <input type="range" id="epsT" min="0" max="1" step="0.1" value="0.0">
-                <span class="value" id="epsT-value">0.0</span>
-            </div>
-            <div class="slider-container">
-                <label for="epsP"><i>ε</i><sub>P</sub>:</label>
-                <input type="range" id="epsP" min="0" max="1" step="0.1" value="1.0">
-                <span class="value" id="epsP-value">1.0</span>
-            </div>
+            <p>This simulator models the reaction: A + T ⟶ P where A is the analyte, T is the titrant, P is the product, and <i>K</i> is the equilibrium constant for the titration reaction. A, T, and P all absorb light at the titration wavelength according to Beer's Law: <i>A = εbC</i></p>  
         </div>
         
-        <h2>Reaction parameters</h2>
-        <div class="param-container">
-            <div class="param-item">
-                <label for="cA">Analyte concentration [M]:</label>
-                <input type="number" id="cA" value="0.1" min="0.01" step="0.01">
+        <div class="content-wrapper">
+            <div class="controls-panel">
+                <h2>Relative molar absorptivity (<i>ε</i>)</h2>
+                <div class="section-content">
+                    <div class="input-group">
+                        <div class="slider-container">
+                            <label for="epsA"><i>ε</i><sub>A</sub>:</label>
+                            <input type="range" id="epsA" min="0" max="1" step="0.1" value="0.0">
+                            <span class="value" id="epsA-value">0.0</span>
+                        </div>
+                        <div class="slider-container">
+                            <label for="epsT"><i>ε</i><sub>T</sub>:</label>
+                            <input type="range" id="epsT" min="0" max="1" step="0.1" value="0.0">
+                            <span class="value" id="epsT-value">0.0</span>
+                        </div>
+                        <div class="slider-container">
+                            <label for="epsP"><i>ε</i><sub>P</sub>:</label>
+                            <input type="range" id="epsP" min="0" max="1" step="0.1" value="1.0">
+                            <span class="value" id="epsP-value">1.0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h2>Reaction parameters</h2>
+                <div class="section-content">
+                    <div class="param-container-column">
+                        <div class="param-item-full">
+                            <label for="cA">Analyte concentration [M]:</label>
+                            <input type="number" id="cA" value="0.1" min="0.01" step="0.01">
+                        </div>
+                        <div class="param-item-full">
+                            <label for="cT">Titrant concentration [M]:</label>
+                            <input type="number" id="cT" value="0.1" min="0.01" step="0.01">
+                        </div>
+                        <div class="param-item-full">
+                            <label for="vA">Analyte volume [mL]:</label>
+                            <input type="number" id="vA" value="50" min="1" step="1">
+                        </div>
+                        <div class="param-item-full">
+                            <label for="logK">log <i>K</i>:</label>
+                            <input type="number" id="logK" value="7" min="-10" max="15" step="0.1">
+                        </div>
+                    </div>
+                    
+                    <div class="download-section">
+                        <button onclick="downloadTitrationData()">Download Data as CSV</button>
+                    </div>
+                    
+                    <div id="error-message" class="error"></div>
+                </div>
             </div>
-            <div class="param-item">
-                <label for="cT">Titrant concentration [M]:</label>
-                <input type="number" id="cT" value="0.1" min="0.01" step="0.01">
+            
+            <div class="chart-panel">
+                <div class="chart-container">
+                    <canvas id="titrationChart"></canvas>
+                </div>
             </div>
-        </div>
-        <div class="param-container">
-            <div class="param-item">
-                <label for="vA">Analyte volume [mL]:</label>
-                <input type="number" id="vA" value="50" min="1" step="1">
-            </div>
-            <div class="param-item">
-                <label for="K">Equilibrium constant (K):</label>
-                <input type="number" id="K" value="10000000" min="1" step="1">
-            </div>
-        </div>
-        
-        <div id="error-message" class="error"></div>
-        
-        <button id="calculate-btn">Draw titration curve</button>
-        
-        <div class="chart-container">
-            <canvas id="titrationChart"></canvas>
         </div>
     </div>
 
     <script>
+        // Global variables for data storage
+        let titrationData = {
+            volumes: [],
+            absorbances: []
+        };
+        
         // Initialize chart
-        let titrationChart = new Chart(
-            document.getElementById('titrationChart'),
-            {
+        let titrationChart;
+        
+        function initializeChart() {
+            const ctx = document.getElementById('titrationChart').getContext('2d');
+            titrationChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
@@ -176,11 +232,7 @@
                     maintainAspectRatio: false,
                     plugins: {
                         title: {
-                            display: true,
-                            text: 'Spectrophotometric Titration Curve',
-                            font: {
-                                size: 16
-                            }
+                            display: false
                         },
                         legend: {
                             display: false
@@ -197,32 +249,42 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Titrant Volume [mL]'
+                                text: 'Titrant volume [mL]'
                             }
                         },
                         y: {
                             title: {
                                 display: true,
-                                text: 'Absorbance'
+                                text: 'Relative absorbance'
                             },
                             beginAtZero: true
                         }
+                    },
+                    animation: {
+                        duration: 0
                     }
                 }
-            }
-        );
-
-        // Update slider value displays
-        document.querySelectorAll('input[type="range"]').forEach(slider => {
-            const valueDisplay = document.getElementById(`${slider.id}-value`);
-            slider.addEventListener('input', () => {
-                valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
             });
-        });
-
-        // Calculate button event listener
-        document.getElementById('calculate-btn').addEventListener('click', calculateTitration);
-
+        }
+        
+        // Set up event listeners
+        function setupEventListeners() {
+            // Molar absorptivity sliders
+            document.querySelectorAll('input[type="range"]').forEach(slider => {
+                const valueDisplay = document.getElementById(`${slider.id}-value`);
+                slider.addEventListener('input', () => {
+                    valueDisplay.textContent = parseFloat(slider.value).toFixed(1);
+                    calculateTitration();
+                });
+            });
+            
+            // Numerical input fields
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', calculateTitration);
+            });
+        }
+        
+        // Calculate titration data
         function calculateTitration() {
             // Get all input values
             const epsA = parseFloat(document.getElementById('epsA').value);
@@ -231,14 +293,15 @@
             const cA = parseFloat(document.getElementById('cA').value);
             const cT = parseFloat(document.getElementById('cT').value);
             const vA = parseFloat(document.getElementById('vA').value);
-            const K = parseFloat(document.getElementById('K').value);
+            const logK = parseFloat(document.getElementById('logK').value);
+            const K = Math.pow(10, logK); // Convert log K to K
             
             // Validate inputs
             const errorElement = document.getElementById('error-message');
             errorElement.textContent = '';
             
-            if (isNaN(cA) || cA <= 0 || isNaN(cT) || cT <= 0 || isNaN(vA) || vA <= 0 || isNaN(K) || K <= 0) {
-                errorElement.textContent = 'All parameters must be positive numbers.';
+            if (isNaN(cA) || cA <= 0 || isNaN(cT) || cT <= 0 || isNaN(vA) || vA <= 0 || isNaN(K)) {
+                errorElement.textContent = 'All parameters must be valid numbers. Analyte and titrant values must be positive.';
                 return;
             }
 
@@ -316,14 +379,54 @@
                 absorbanceValues.push(absorbance);
             }
             
+            // Store data globally
+            titrationData.volumes = vTValues;
+            titrationData.absorbances = absorbanceValues;
+            
             // Update chart
             titrationChart.data.labels = vTValues;
             titrationChart.data.datasets[0].data = absorbanceValues;
             titrationChart.update();
         }
         
-        // Initial calculation on page load
-        calculateTitration();
+        // Function to download data as CSV
+        function downloadTitrationData() {
+            // Check if we have data
+            if (!titrationData.volumes.length || !titrationData.absorbances.length) {
+                document.getElementById('error-message').textContent = 'No data available to download.';
+                return;
+            }
+            
+            // Create CSV content
+            let csvContent = 'Titrant Volume (mL),Absorbance\n';
+            for (let i = 0; i < titrationData.volumes.length; i++) {
+                csvContent += `${titrationData.volumes[i]},${titrationData.absorbances[i]}\n`;
+            }
+            
+            // Create a Blob containing the CSV data
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            // Create a link element to trigger the download
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'titration_data.csv');
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize everything when the page loads
+        window.onload = function() {
+            initializeChart();
+            setupEventListeners();
+            calculateTitration();
+        };
     </script>
 </body>
 </html>
