@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
@@ -24,21 +24,35 @@
             text-align: center;
             margin-bottom: 30px;
         }
+        /* Two-column layout */
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+        .controls-column {
+            flex: 0 0 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .chart-column {
+            flex: 1;
+            min-width: 0; /* Prevents flex items from overflowing */
+        }
         .input-section {
             background-color: #f8f9fa;
             padding: 15px;
             border-radius: 5px;
-            margin-bottom: 20px;
         }
         .input-group {
             display: flex;
-            flex-wrap: wrap;
+            flex-direction: column;
             gap: 15px;
             margin-bottom: 15px;
         }
         .input-field {
-            flex: 1;
-            min-width: 200px;
+            width: 100%;
         }
         label {
             display: block;
@@ -61,14 +75,15 @@
             cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s;
+            width: 100%;
         }
         button:hover {
             background-color: #2980b9;
         }
         .chart-container {
             position: relative;
-            height: 400px;
-            margin-top: 20px;
+            height: 550px;
+            width: 100%;
         }
         .explanation {
             margin-top: 30px;
@@ -78,14 +93,12 @@
         }
         .species-info {
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            margin-top: 20px;
+            flex-direction: column;
+            gap: 10px;
         }
         .species-label {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
         }
         .color-box {
             width: 15px;
@@ -95,11 +108,24 @@
         }
         .download-section {
             margin-top: 20px;
-            text-align: center;
         }
+        .section-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        /* Responsive adjustments */
         @media (max-width: 768px) {
-            .input-field {
-                min-width: 100%;
+            .main-content {
+                flex-direction: column;
+            }
+            .controls-column {
+                flex: auto;
+                width: 100%;
+            }
+            .chart-container {
+                height: 400px;
             }
         }
     </style>
@@ -108,41 +134,54 @@
     <div class="container">
         <h1>Acid/Base Fractional Composition Diagram</h1>
         
-        <div class="input-section">
-            <div class="input-group">
-                <div class="input-field">
-                    <label for="acid-type">Acid Type:</label>
-                    <select id="acid-type" onchange="updateInputFields(); generateDiagram();">
-                        <option value="1">Monoprotic (HA)</option>
-                        <option value="2">Diprotic (H₂A)</option>
-                        <option value="3">Triprotic (H₃A)</option>
-                    </select>
+        <div class="main-content">
+            <!-- Left Column: Controls -->
+            <div class="controls-column">
+                <div class="input-section">
+                    <div class="section-title">Parameters</div>
+                    <div class="input-group">
+                        <div class="input-field">
+                            <label for="acid-type">Acid Type:</label>
+                            <select id="acid-type" onchange="updateInputFields(); generateDiagram();">
+                                <option value="1">Monoprotic (HA)</option>
+                                <option value="2">Diprotic (H₂A)</option>
+                                <option value="3">Triprotic (H₃A)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="input-field">
+                            <label for="ph-range-min">pH Range (Min):</label>
+                            <input type="number" id="ph-range-min" value="0" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
+                        </div>
+                        
+                        <div class="input-field">
+                            <label for="ph-range-max">pH Range (Max):</label>
+                            <input type="number" id="ph-range-max" value="14" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
+                        </div>
+                    </div>
+                    
+                    <div class="section-title">Dissociation Constants</div>
+                    <div id="pka-inputs" class="input-group">
+                        <!-- pKa inputs will be added here dynamically -->
+                    </div>
                 </div>
                 
-                <div class="input-field">
-                    <label for="ph-range-min">pH Range (Min):</label>
-                    <input type="number" id="ph-range-min" value="0" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
+                <div class="species-info">
+                    <div class="section-title">Species Legend</div>
+                    <div id="species-legend"></div>
                 </div>
                 
-                <div class="input-field">
-                    <label for="ph-range-max">pH Range (Max):</label>
-                    <input type="number" id="ph-range-max" value="14" step="0.5" min="0" max="14" onchange="generateDiagram();" oninput="generateDiagram();">
+                <div class="download-section">
+                    <button onclick="downloadCSV()">Download Data as CSV</button>
                 </div>
             </div>
             
-            <div id="pka-inputs" class="input-group">
-                <!-- pKa inputs will be added here dynamically -->
+            <!-- Right Column: Chart -->
+            <div class="chart-column">
+                <div class="chart-container">
+                    <canvas id="diagramChart"></canvas>
+                </div>
             </div>
-        </div>
-        
-        <div id="species-legend" class="species-info"></div>
-        
-        <div class="chart-container">
-            <canvas id="diagramChart"></canvas>
-        </div>
-        
-        <div class="download-section">
-            <button onclick="downloadCSV()">Download Data as CSV</button>
         </div>
     </div>
 
