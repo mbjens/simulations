@@ -14,7 +14,7 @@
     }
     
     .container {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
       background-color: white;
       border-radius: 10px;
@@ -28,15 +28,51 @@
       color: #2563eb;
     }
     
+    /* Two-column layout */
+    .main-content {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+    }
+    
+    .left-column {
+      flex: 0 0 350px;
+    }
+    
+    .right-column {
+      flex: 1;
+      min-width: 0; /* Prevent flex child from overflowing parent */
+    }
+    
+    /* Responsive layout for small screens */
+    @media (max-width: 900px) {
+      .main-content {
+        flex-direction: column;
+      }
+      
+      .left-column {
+        flex: auto;
+        width: 100%;
+      }
+    }
+    
     .input-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: 1fr;
       gap: 15px;
       margin-bottom: 20px;
     }
     
     .input-group {
       margin-bottom: 5px;
+    }
+    
+    /* Horizontal layout for halide selector and pKsp */
+    .halide-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      margin-bottom: 10px;
     }
     
     label {
@@ -47,7 +83,7 @@
     }
     
     input[type="number"] {
-      width: 100%;
+      width: 90%;
       padding: 8px;
       border: 1px solid #d1d5db;
       border-radius: 5px;
@@ -61,7 +97,7 @@
     }
     
     select {
-      width: 100%;
+      width: 90%;
       padding: 8px;
       border: 1px solid #d1d5db;
       border-radius: 5px;
@@ -86,6 +122,7 @@
       border-radius: 5px;
       padding: 15px;
       margin-bottom: 20px;
+      width: 90%;
     }
     
     .info-panel h2 {
@@ -100,11 +137,42 @@
       font-size: 14px;
     }
     
+    /* Export button styles */
+    .export-button {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      padding: 10px 15px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background-color 0.2s;
+      margin-top: 10px;
+      width: 90%;
+      justify-content: center;
+    }
+    
+    .export-button:hover {
+      background-color: #1d4ed8;
+    }
+    
+    .export-button:active {
+      background-color: #1e40af;
+    }
+    
+    .export-button svg {
+      width: 16px;
+      height: 16px;
+    }
+    
     .chart-container {
       width: 100%;
-      height: 400px;
+      height: 500px;
       position: relative;
-      margin-top: 20px;
       border: 1px solid #d1d5db;
       border-radius: 5px;
       cursor: crosshair;
@@ -149,80 +217,100 @@
   <div class="container">
     <h1>Silver Halide Titration Simulator</h1>
     
-    <div class="input-grid">
-      <div class="input-group" style="position: relative;">
-        <label for="halide-type">Halide Ion</label>
-        <select id="halide-type">
-          <option value="Cl">Chloride (Cl⁻)</option>
-          <option value="Br">Bromide (Br⁻)</option>
-          <option value="I">Iodide (I⁻)</option>
-          <option value="custom">Custom (X⁻)</option>
-        </select>
-        <div id="pksp-input-container" style="display: none; position: absolute; width: 100%; margin-top: 5px;">
-          <label for="pksp-value">pKsp Value:</label>
-          <input 
-            type="number" 
-            id="pksp-value" 
-            value="10" 
-            step="0.1" 
-            min="0"
-          >
-          <div class="error" id="error-pksp-value"></div>
+    <div class="main-content">
+      <!-- Left column: Inputs and info panel -->
+      <div class="left-column">
+        <div class="input-grid">
+          <!-- Halide selector with inline pKsp input -->
+          <div class="halide-row">
+            <div style="flex: 1;">
+              <label for="halide-type">Halide ion</label>
+              <select id="halide-type">
+                <option value="Cl">Chloride (Cl⁻)</option>
+                <option value="Br">Bromide (Br⁻)</option>
+                <option value="I">Iodide (I⁻)</option>
+                <option value="custom">Custom (X⁻)</option>
+              </select>
+            </div>
+            
+            <div id="pksp-input-container" style="flex: 1; display: none;">
+              <label for="pksp-value">pKsp Value</label>
+              <input 
+                type="number" 
+                id="pksp-value" 
+                value="10" 
+                step="0.1" 
+                min="0"
+              >
+              <div class="error" id="error-pksp-value"></div>
+            </div>
+          </div>
+          
+          <div class="input-group">
+            <label for="halide-concentration">Halide concentration (M)</label>
+            <input 
+              type="number" 
+              id="halide-concentration" 
+              value="0.1" 
+              step="0.01" 
+              min="0"
+            >
+            <div class="error" id="error-halide-concentration"></div>
+          </div>
+          
+          <div class="input-group">
+            <label for="halide-volume">Halide volume (mL)</label>
+            <input 
+              type="number" 
+              id="halide-volume" 
+              value="50" 
+              step="1" 
+              min="0"
+            >
+            <div class="error" id="error-halide-volume"></div>
+          </div>
+          
+          <div class="input-group">
+            <label for="silver-concentration">AgNO<sub>3</sub> concentration (M)</label>
+            <input 
+              type="number" 
+              id="silver-concentration" 
+              value="0.1" 
+              step="0.01" 
+              min="0"
+            >
+            <div class="error" id="error-silver-concentration"></div>
+          </div>
+        </div>
+        
+        <!-- Info panel and export button -->
+        <div class="info-panel">
+          <h2>Titration Parameters:</h2>
+          <ul>
+            <li><strong>Analyte:</strong> <span id="summary-halide-type">Chloride (Cl⁻)</span>, <span id="summary-halide-concentration">0.100</span> M, <span id="summary-halide-volume">50.0</span> mL</li>
+            <li><strong>Titrant:</strong> AgNO₃, <span id="summary-silver-concentration">0.100</span> M</li>
+            <li><strong>p<i>K</i><sub>sp</sub>(AgX):</strong> <span id="summary-pksp-value">9.74</span></li>
+            <li><strong>Equivalence point:</strong> <span id="summary-equivalence-point">50.00</span> mL of AgNO₃</li>
+          </ul>
+        </div>
+        
+        <button id="export-csv" class="export-button">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export Data (CSV)
+        </button>
+      </div>
+      
+      <!-- Right column: Chart -->
+      <div class="right-column">
+        <div class="chart-container" id="chart-container">
+          <canvas id="titration-chart"></canvas>
+          <div class="cursor-info" id="cursor-info"></div>
+          <div class="cursor-line-x" id="cursor-line-x"></div>
+          <div class="cursor-line-y" id="cursor-line-y"></div>
         </div>
       </div>
-      
-      <div class="input-group">
-        <label for="halide-concentration">Halide Concentration (M)</label>
-        <input 
-          type="number" 
-          id="halide-concentration" 
-          value="0.1" 
-          step="0.01" 
-          min="0"
-        >
-        <div class="error" id="error-halide-concentration"></div>
-      </div>
-      
-      <div class="input-group">
-        <label for="halide-volume">Halide Volume (mL)</label>
-        <input 
-          type="number" 
-          id="halide-volume" 
-          value="50" 
-          step="1" 
-          min="0"
-        >
-        <div class="error" id="error-halide-volume"></div>
-      </div>
-      
-      <div class="input-group">
-        <label for="silver-concentration">Silver Nitrate Concentration (M)</label>
-        <input 
-          type="number" 
-          id="silver-concentration" 
-          value="0.1" 
-          step="0.01" 
-          min="0"
-        >
-        <div class="error" id="error-silver-concentration"></div>
-      </div>
-    </div>
-    
-    <div class="info-panel">
-      <h2>Titration Parameters:</h2>
-      <ul>
-        <li><strong>Analyte:</strong> <span id="summary-halide-type">Chloride (Cl⁻)</span>, <span id="summary-halide-concentration">0.100</span> M, <span id="summary-halide-volume">50.0</span> mL</li>
-        <li><strong>Titrant:</strong> AgNO₃, <span id="summary-silver-concentration">0.100</span> M</li>
-        <li><strong>pKsp(AgX):</strong> <span id="summary-pksp-value">9.74</span></li>
-        <li><strong>Equivalence point:</strong> <span id="summary-equivalence-point">50.00</span> mL of AgNO₃</li>
-      </ul>
-    </div>
-    
-    <div class="chart-container" id="chart-container">
-      <canvas id="titration-chart"></canvas>
-      <div class="cursor-info" id="cursor-info"></div>
-      <div class="cursor-line-x" id="cursor-line-x"></div>
-      <div class="cursor-line-y" id="cursor-line-y"></div>
     </div>
   </div>
 
@@ -295,6 +383,9 @@
     const cursorInfo = document.getElementById('cursor-info');
     const cursorLineX = document.getElementById('cursor-line-x');
     const cursorLineY = document.getElementById('cursor-line-y');
+    
+    // Export button
+    const exportButton = document.getElementById('export-csv');
     
     // ----- Input validation and handling -----
     function validateInputs() {
@@ -691,6 +782,47 @@
       cursorLineY.style.display = 'none';
     }
     
+    // ----- CSV Export Function -----
+    function exportToCsv() {
+      // Check if there is data to export
+      if (titrationData.length === 0) {
+        alert('No data to export. Please set parameters first.');
+        return;
+      }
+      
+      // Create CSV header row
+      let csvContent = 'Volume (mL),pAg (-log[Ag⁺])\n';
+      
+      // Add data rows
+      titrationData.forEach(point => {
+        csvContent += `${point.volume.toFixed(4)},${point.pAg.toFixed(4)}\n`;
+      });
+      
+      // Create a Blob containing the CSV data
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Create a download link
+      const link = document.createElement('a');
+      
+      // Create a URL for the blob
+      const url = URL.createObjectURL(blob);
+      
+      // Set link properties
+      link.setAttribute('href', url);
+      link.setAttribute('download', `titration_${halideType}_data.csv`);
+      link.style.visibility = 'hidden';
+      
+      // Add link to document
+      document.body.appendChild(link);
+      
+      // Simulate click to trigger download
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+    
     // ----- Event listeners -----
     // Update parameters when halide type changes
     selectHalideType.addEventListener('change', function() {
@@ -713,6 +845,9 @@
     // Handle mouse interaction with the chart
     chartContainer.addEventListener('mousemove', handleMouseMove);
     chartContainer.addEventListener('mouseleave', handleMouseLeave);
+    
+    // Add event listener for CSV export button
+    exportButton.addEventListener('click', exportToCsv);
     
     // Handle window resize
     window.addEventListener('resize', function() {
