@@ -211,6 +211,19 @@
       width: 1px;
       height: 100%;
     }
+    
+    .cursor-point {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background-color: #ef4444;
+      border: 2px solid white;
+      border-radius: 50%;
+      pointer-events: none;
+      display: none;
+      z-index: 15;
+      transform: translate(-50%, -50%);
+    }
   </style>
 </head>
 <body>
@@ -309,6 +322,7 @@
           <div class="cursor-info" id="cursor-info"></div>
           <div class="cursor-line-x" id="cursor-line-x"></div>
           <div class="cursor-line-y" id="cursor-line-y"></div>
+          <div class="cursor-point" id="cursor-point"></div>
         </div>
       </div>
     </div>
@@ -383,6 +397,7 @@
     const cursorInfo = document.getElementById('cursor-info');
     const cursorLineX = document.getElementById('cursor-line-x');
     const cursorLineY = document.getElementById('cursor-line-y');
+    const cursorPoint = document.getElementById('cursor-point');
     
     // Export button
     const exportButton = document.getElementById('export-csv');
@@ -696,26 +711,26 @@
       ctx.fillText(`Titration of ${halideNames[halideType]} with AgNO₃`, chartWidth / 2, 15);
     }
     
-    // Get pAg value at a specific volume by interpolating between data points
-    function interpolatePAg(volume) {
-      // Find the two data points that bracket the volume
-      let lowerPoint = null;
-      let upperPoint = null;
+    // Find the closest data point to the mouse position
+    function findClosestDataPoint(mouseX) {
+      if (titrationData.length === 0) return null;
       
-      for (let i = 0; i < titrationData.length - 1; i++) {
-        if (titrationData[i].volume <= volume && volume <= titrationData[i + 1].volume) {
-          lowerPoint = titrationData[i];
-          upperPoint = titrationData[i + 1];
-          break;
+      // Convert mouse X to volume
+      const targetVolume = xScaleInverse(mouseX);
+      
+      // Find the closest data point by volume
+      let closestPoint = titrationData[0];
+      let minDistance = Math.abs(targetVolume - closestPoint.volume);
+      
+      for (const point of titrationData) {
+        const distance = Math.abs(targetVolume - point.volume);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestPoint = point;
         }
       }
       
-      // If not found, return null (out of range)
-      if (!lowerPoint || !upperPoint) return null;
-      
-      // Perform linear interpolation
-      const ratio = (volume - lowerPoint.volume) / (upperPoint.volume - lowerPoint.volume);
-      return lowerPoint.pAg + ratio * (upperPoint.pAg - lowerPoint.pAg);
+      return closestPoint;
     }
     
     // Handle mouse movement on the chart
@@ -731,47 +746,58 @@
         mouseY >= margin.top && 
         mouseY <= chartHeight - margin.bottom
       ) {
-        // Show cursor info
-        cursorInfo.style.display = 'block';
-        cursorLineX.style.display = 'block';
-        cursorLineY.style.display = 'block';
+        // Find the closest data point
+        const closestPoint = findClosestDataPoint(mouseX);
         
-        // Get data values from mouse position
-        const volume = xScaleInverse(mouseX);
-        const pAg = yScaleInverse(mouseY);
-        
-        // Position cursor lines
-        cursorLineX.style.top = `${mouseY}px`;
-        cursorLineX.style.left = `${margin.left}px`;
-        cursorLineX.style.width = `${plotWidth}px`;
-        
-        cursorLineY.style.top = `${margin.top}px`;
-        cursorLineY.style.left = `${mouseX}px`;
-        cursorLineY.style.height = `${plotHeight}px`;
-        
-        // Update cursor info text
-        cursorInfo.textContent = `Volume: ${volume.toFixed(2)} mL, pAg: ${pAg.toFixed(2)}`;
-        
-        // Position cursor info
-        let infoX = mouseX + 15;
-        let infoY = mouseY - 25;
-        
-        // Adjust if near the edges
-        if (infoX + cursorInfo.offsetWidth > chartWidth - 10) {
-          infoX = mouseX - cursorInfo.offsetWidth - 10;
+        if (closestPoint) {
+          // Convert data point to screen coordinates
+          const pointX = xScale(closestPoint.volume);
+          const pointY = yScale(closestPoint.pAg);
+          
+          // Show cursor elements
+          cursorInfo.style.display = 'block';
+          cursorLineX.style.display = 'block';
+          cursorLineY.style.display = 'block';
+          cursorPoint.style.display = 'block';
+          
+          // Position cursor lines at the data point
+          cursorLineX.style.top = `${pointY}px`;
+          cursorLineX.style.left = `${margin.left}px`;
+          cursorLineX.style.width = `${plotWidth}px`;
+          
+          cursorLineY.style.top = `${margin.top}px`;
+          cursorLineY.style.left = `${pointX}px`;
+          cursorLineY.style.height = `${plotHeight}px`;
+          
+          // Position cursor point
+          cursorPoint.style.left = `${pointX}px`;
+          cursorPoint.style.top = `${pointY}px`;
+          
+          // Update cursor info text with exact data point values
+          cursorInfo.textContent = `Volume: ${closestPoint.volume.toFixed(2)} mL, pAg: ${closestPoint.pAg.toFixed(3)}`;
+          
+          // Position cursor info near the mouse but avoid overlapping with the point
+          let infoX = mouseX + 15;
+          let infoY = mouseY - 25;
+          
+          // Adjust if near the edges
+          if (infoX + cursorInfo.offsetWidth > chartWidth - 10) {
+            infoX = mouseX - cursorInfo.offsetWidth - 10;
+          }
+          
+          if (infoY < 5) {
+            infoY = 5;
+          }
+          
+          cursorInfo.style.left = `${infoX}px`;
+          cursorInfo.style.top = `${infoY}px`;
         }
-        
-        if (infoY < 5) {
-          infoY = 5;
-        }
-        
-        cursorInfo.style.left = `${infoX}px`;
-        cursorInfo.style.top = `${infoY}px`;
       } else {
         // Hide cursor info
         cursorInfo.style.display = 'none';
         cursorLineX.style.display = 'none';
         cursorLineY.style.display = 'none';
+        cursorPoint.style.display = 'none';
       }
     }
     
@@ -780,6 +806,7 @@
       cursorInfo.style.display = 'none';
       cursorLineX.style.display = 'none';
       cursorLineY.style.display = 'none';
+      cursorPoint.style.display = 'none';
     }
     
     // ----- CSV Export Function -----
@@ -856,6 +883,7 @@
       cursorInfo.style.display = 'none';
       cursorLineX.style.display = 'none';
       cursorLineY.style.display = 'none';
+      cursorPoint.style.display = 'none';
     });
     
     // ----- Initialization -----
