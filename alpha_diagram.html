@@ -475,11 +475,11 @@
         // Generate species names based on acid type
         function generateSpeciesNames(acidType) {
             if (acidType === 1) {
-                return ['HA', 'A⁻'];
+                return ['HA', 'A'];
             } else if (acidType === 2) {
-                return ['H₂A', 'HA⁻', 'A²⁻'];
+                return ['H₂A', 'HA', 'A'];
             } else {
-                return ['H₃A', 'H₂A⁻', 'HA²⁻', 'A³⁻'];
+                return ['H₃A', 'H₂', 'HA', 'A'];
             }
         }
         
